@@ -68,22 +68,22 @@ class __Configuration:
         self.__CONFIG['SCRIPT_EDITOR'] = value
 
     def save(self):
-        cbPrint("Saving configuration file.", 'debug')
+        cbPrint('Saving configuration file.', 'debug')
 
         if os.path.isdir(self.__CONFIG_PATH):
             try:
                 with open(self.__CONFIG_FILEPATH, 'wb') as f:
                     pickle.dump(self.__CONFIG, f, -1)
-                    cbPrint("Configuration file saved.")
+                    cbPrint('Configuration file saved.')
 
                 cbPrint('Saved %s' % self.__CONFIG_FILEPATH)
 
             except:
-                cbPrint("[IO] can not write: %s" % self.__CONFIG_FILEPATH,
+                cbPrint('[IO] can not write: %s' % self.__CONFIG_FILEPATH,
                         'error')
 
         else:
-            cbPrint("Configuration file path is missing %s"
+            cbPrint('Configuration file path is missing %s'
                     % self.__CONFIG_PATH,
                     'error')
 
@@ -98,7 +98,7 @@ class __Configuration:
                     new_configuration.update(pickle.load(f))
                     cbPrint('Configuration file loaded.')
             except:
-                cbPrint("[IO] can not read: %s" % self.__CONFIG_FILEPATH,
+                cbPrint('[IO] can not read: %s' % self.__CONFIG_FILEPATH,
                         'error')
 
         return new_configuration

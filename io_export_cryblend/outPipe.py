@@ -22,19 +22,19 @@ class OutPipe():
 
     def pump(self, message, message_type='info'):
         if message_type == 'info':
-            print("[Info] CryBlend: {!r}".format(message))
+            print('[Info] CryBlend: {!r}'.format(message))
 
         elif message_type == 'debug':
-            print("[Debug] CryBlend: {!r}".format(message))
+            print('[Debug] CryBlend: {!r}'.format(message))
 
         elif message_type == 'warning':
-            print("[Warning] CryBlend: {!r}".format(message))
+            print('[Warning] CryBlend: {!r}'.format(message))
 
         elif message_type == 'error':
-            print("[Error] CryBlend: {!r}".format(message))
+            print('[Error] CryBlend: {!r}'.format(message))
 
         else:
-            raise exceptions.CryBlendException("No such message type {!r}".
+            raise exceptions.CryBlendException('No such message type {!r}'.
                                     format(message_type))
 
 

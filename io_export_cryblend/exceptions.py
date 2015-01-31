@@ -25,7 +25,7 @@ class CryBlendException(RuntimeError):
 
 class BlendNotSavedException(CryBlendException):
     def __init__(self):
-        message = "Blend file has to be saved before exporting."
+        message = 'Blend file has to be saved before exporting.'
 
         CryBlendException.__init__(self, message)
 

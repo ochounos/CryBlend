@@ -12,7 +12,7 @@
 # <pep8-80 compliant>
 
 
-if "bpy" in locals():
+if 'bpy' in locals():
     import imp
     imp.reload(utils)
 else:
@@ -20,6 +20,8 @@ else:
     from io_export_cryblend import utils
 
 from io_export_cryblend.outPipe import cbPrint
+from xml.dom.minidom import Document, parseString
+import fnmatch
 import os
 import shutil
 import subprocess
@@ -48,15 +50,16 @@ class _DAEConverter:
         self.__doc = source
 
     def __call__(self):
-        filepath = bpy.path.ensure_ext(self.__config.filepath, ".dae")
-        utils.generate_xml(filepath, self.__doc)
+        filepath = bpy.path.ensure_ext(self.__config.filepath, '.dae')
+        xml_string = self.__doc.toprettyxml(indent="    ")
+        utils.generate_file(filepath, xml_string)
 
         dae_path = utils.get_absolute_path_for_rc(filepath)
 
         if not self.__config.disable_rc:
-            rc_params = ["/verbose", "/threads=processors", "/refresh"]
+            rc_params = ['/verbose', '/threads=processors', '/refresh']
             if self.__config.do_materials:
-                rc_params.append("/createmtl=1")
+                rc_params.append('/createmtl=1')
 
             rc_process = run_rc(self.__config.rc_path, dae_path, rc_params)
 
@@ -73,25 +76,25 @@ class _DAEConverter:
 
         if self.__config.make_layer:
             lyr_contents = self.__make_layer()
-            lyr_path = os.path.splitext(filepath)[0] + ".lyr"
+            lyr_path = os.path.splitext(filepath)[0] + '.lyr'
             utils.generate_file(lyr_path, lyr_contents)
 
         if not self.__config.save_dae:
-            rcdone_path = "{}.rcdone".format(dae_path)
+            rcdone_path = '{}.rcdone'.format(dae_path)
             utils.remove_file(dae_path)
             utils.remove_file(rcdone_path)
 
     def __recompile(self, dae_path):
-        components = dae_path.split("\\")
+        components = dae_path.split('\\')
         name = components[-1]
         output_path = dae_path[:-len(name)]
         for group in utils.get_export_nodes():
             node_type = utils.get_node_type(group.name)
-            allowed = ["cgf", "cga", "chr", "skin"]
+            allowed = ['cgf', 'cga', 'chr', 'skin']
             if node_type in allowed:
-                out_file = "{0}{1}".format(output_path,
+                out_file = '{0}{1}'.format(output_path,
                                             group.name)
-                args = [self.__config.rc_path, "/refresh", "/vertexindexformat=u16", out_file]
+                args = [self.__config.rc_path, '/refresh', '/vertexindexformat=u16', out_file]
                 rc_second_pass = subprocess.Popen(args)
 
     def __fix_normalmap_in_mtls(self, rc_process, dae_file):
@@ -102,30 +105,30 @@ class _DAEConverter:
         if return_code == SUCCESS:
             export_directory = os.path.dirname(dae_file)
 
-            mtl_files = self.get_mtl_files_in_directory(export_directory)
+            mtl_files = self.__get_mtl_files_in_directory(export_directory)
 
             for mtl_file_name in mtl_files:
                 self.__fix_normalmap_in_mtl(mtl_file_name)
 
     def __get_mtl_files_in_directory(self, directory):
-        MTL_MATCH_STRING = "*.{!s}".format("mtl")
+        MTL_MATCH_STRING = '*.{!s}'.format('mtl')
 
         mtl_files = []
         for file in os.listdir(directory):
             if fnmatch.fnmatch(file, MTL_MATCH_STRING):
-                filepath = "{!s}/{!s}".format(directory, file)
+                filepath = '{!s}/{!s}'.format(directory, file)
                 mtl_files.append(filepath)
 
         return mtl_files
 
     def __fix_normalmap_in_mtl(self, mtl_file_name):
-        TMP_FILE_SUFFIX = ".tmp"
-        BAD_TAG_NAME = "<Texture Map=\"NormalMap\" File=\""
-        GOOD_TAG_NAME = "<Texture Map=\"Bumpmap\" File=\""
+        TMP_FILE_SUFFIX = '.tmp'
+        BAD_TAG_NAME = '<Texture Map=\'NormalMap\' File=\''
+        GOOD_TAG_NAME = '<Texture Map=\'Bumpmap\' File=\''
 
         tmp_mtl_file_name = mtl_file_name + TMP_FILE_SUFFIX
-        mtl_old_file = open(mtl_file_name, "r")
-        mtl_new_file = open(tmp_mtl_file_name, "w")
+        mtl_old_file = open(mtl_file_name, 'r')
+        mtl_new_file = open(tmp_mtl_file_name, 'w')
 
         for line in mtl_old_file:
             line = line.replace(BAD_TAG_NAME, GOOD_TAG_NAME)
@@ -138,25 +141,23 @@ class _DAEConverter:
         os.rename(tmp_mtl_file_name, mtl_file_name)
 
     def __make_layer(self):
+        layer_name = "ExportedLayer"
         layer_doc = Document()
         object_layer = layer_doc.createElement("ObjectLayer")
-        layer_name = "ExportedLayer"
-        layer = createAttributes(
-            'Layer',
-            { 'name': layer_name,
-               'GUID': utils.get_guid(),
-               'FullName': layer_name,
-               'External': '0',
-               'Exportable': '1',
-               'ExportLayerPak': '1',
-               'DefaultLoaded': '0',
-               'HavePhysics': '1',
-               'Expanded': '0',
-               'IsDefaultColor': '1'
-            }
-        )
-
+        layer = layer_doc.createElement("Layer")
+        layer.setAttribute('name', layer_name)
+        layer.setAttribute('GUID', utils.get_guid())
+        layer.setAttribute('FullName', layer_name)
+        layer.setAttribute('External', '0')
+        layer.setAttribute('Exportable', '1')
+        layer.setAttribute('ExportLayerPak', '1')
+        layer.setAttribute('DefaultLoaded', '0')
+        layer.setAttribute('HavePhysics', '1')
+        layer.setAttribute('Expanded', '0')
+        layer.setAttribute('IsDefaultColor', '1')
+        # Layer Objects
         layer_objects = layer_doc.createElement("LayerObjects")
+        # Actual Objects
         for group in utils.get_export_nodes():
             if len(group.objects) > 1:
                 origin = 0, 0, 0
@@ -165,96 +166,77 @@ class _DAEConverter:
                 origin = group.objects[0].location
                 rotation = group.objects[0].delta_rotation_quaternion
 
-            object = createAttributes(
-                'Object',
-                { 'name': group.name[14:],
-                  'Type': 'Entity',
-                  'Id': utils.get_guid(),
-                  'LayerGUID': layer.getAttribute('GUID'),
-                  'Layer': layer_name,
-                  'Pos': "%s, %s, %s" % origin[:],
-                  'Rotate': "%s, %s, %s, %s" % rotation[:],
-                  'EntityClass': 'BasicEntity',
-                  'FloorNumber': '-1',
-                  'RenderNearest': '0',
-                  'NoStaticDecals': '0',
-                  'CreatedThroughPool': '0',
-                  'MatLayersMask': '0',
-                  'OutdoorOnly': '0',
-                  'CastShadow': '1',
-                  'MotionBlurMultiplier': '1',
-                  'LodRatio': '100',
-                  'ViewDistRatio': '100',
-                  'HiddenInGame': '0',
-                }
-            )
-            properties = createAttributes(
-                'Properties',
-                { 'object_Model': '/Objects/%s.cgf' % group.name[14:],
-                  'bCanTriggerAreas': '0',
-                  'bExcludeCover': '0',
-                  'DmgFactorWhenCollidingAI': '1',
-                  'esFaction': '',
-                  'bHeavyObject': '0',
-                  'bInteractLargeObject': '0',
-                  'bMissionCritical': '0',
-                  'bPickable': '0',
-                  'soclasses_SmartObjectClass': '',
-                  'bUsable': '0',
-                  'UseMessage': '0',
-                }
-            )
-            health = createAttributes(
-                'Health',
-                { 'bInvulnerable': '1',
-                  'MaxHealth': '500',
-                  'bOnlyEnemyFire': '1',
-                }
-            )
-            interest = createAttributes(
-                'Interest',
-                { 'soaction_Action': '',
-                  'bInteresting': '0',
-                  'InterestLevel': '1',
-                  'Pause': '15',
-                  'Radius': '20',
-                  'bShared': '0',
-                }
-            )
-            vOffset = createAttributes(
-                'vOffset',
-                { 'x': '0',
-                  'y': '0',
-                  'z': '0',
-                }
-            )
-
-            interest.appendChild(vOffset)
-            properties.appendChild(health)
-            properties.appendChild(interest)
-            object.appendChild(properties)
-            layer_objects.appendChild(object)
+            if 'CryExportNode' in group.name:
+                object_node = layer_doc.createElement("Object")
+                object_node.setAttribute('name', group.name[14:])
+                object_node.setAttribute('Type', 'Entity')
+                object_node.setAttribute('Id', utils.get_guid())
+                object_node.setAttribute('LayerGUID', layer.getAttribute('GUID'))
+                object_node.setAttribute('Layer', layer_name)
+                cbPrint(origin)
+                positionString = "%s, %s, %s" % origin[:]
+                object_node.setAttribute('Pos', positionString)
+                rotationString = "%s, %s, %s, %s" % rotation[:]
+                object_node.setAttribute('Rotate', rotationString)
+                object_node.setAttribute('EntityClass', 'BasicEntity')
+                object_node.setAttribute('FloorNumber', '-1')
+                object_node.setAttribute('RenderNearest', '0')
+                object_node.setAttribute('NoStaticDecals', '0')
+                object_node.setAttribute('CreatedThroughPool', '0')
+                object_node.setAttribute('MatLayersMask', '0')
+                object_node.setAttribute('OutdoorOnly', '0')
+                object_node.setAttribute('CastShadow', '1')
+                object_node.setAttribute('MotionBlurMultiplier', '1')
+                object_node.setAttribute('LodRatio', '100')
+                object_node.setAttribute('ViewDistRatio', '100')
+                object_node.setAttribute('HiddenInGame', '0')
+                properties = layer_doc.createElement("Properties")
+                properties.setAttribute('object_Model', '/Objects/%s.cgf'
+                                        % group.name[14:])
+                properties.setAttribute('bCanTriggerAreas', '0')
+                properties.setAttribute('bExcludeCover', '0')
+                properties.setAttribute('DmgFactorWhenCollidingAI', '1')
+                properties.setAttribute('esFaction', '')
+                properties.setAttribute('bHeavyObject', '0')
+                properties.setAttribute('bInteractLargeObject', '0')
+                properties.setAttribute('bMissionCritical', '0')
+                properties.setAttribute('bPickable', '0')
+                properties.setAttribute('soclasses_SmartObjectClass', '')
+                properties.setAttribute('bUsable', '0')
+                properties.setAttribute('UseMessage', '0')
+                health = layer_doc.createElement("Health")
+                health.setAttribute('bInvulnerable', '1')
+                health.setAttribute('MaxHealth', '500')
+                health.setAttribute('bOnlyEnemyFire', '1')
+                interest = layer_doc.createElement("Interest")
+                interest.setAttribute('soaction_Action', '')
+                interest.setAttribute('bInteresting', '0')
+                interest.setAttribute('InterestLevel', '1')
+                interest.setAttribute('Pause', '15')
+                interest.setAttribute('Radius', '20')
+                interest.setAttribute('bShared', '0')
+                vOffset = layer_doc.createElement('vOffset')
+                vOffset.setAttribute('x', '0')
+                vOffset.setAttribute('y', '0')
+                vOffset.setAttribute('z', '0')
+                interest.appendChild(vOffset)
+                properties.appendChild(health)
+                properties.appendChild(interest)
+                object_node.appendChild(properties)
+                layer_objects.appendChild(object_node)
 
         layer.appendChild(layer_objects)
         object_layer.appendChild(layer)
         layer_doc.appendChild(object_layer)
 
-        return layer_doc.toprettyxml(indent="    ")
-
-        def __createAttributes(self, nodename, attributes):
-            doc = Document()
-            node = doc.createElement(nodename)
-            for name, value in attributes.items():
-                node.setAttribute(name, value)
-
-            return node
+        return layer_doc.toprettyxml(indent="  ")
 
 class _TIFConverter:
     def __init__(self, config, source):
         self.__config = config
         self.__images_to_convert = source
         self.__tmp_images = {}
-        self.__tmp_dir = tempfile.mkdtemp("CryBlend")
+        self.__tmp_dir = tempfile.mkdtemp('CryBlend')
 
     def __call__(self):
         for image in self.__images_to_convert:
@@ -267,7 +249,7 @@ class _TIFConverter:
             try:
                 self.__create_normal_texture()
             except:
-                cbPrint("Failed to invert green channel")
+                cbPrint('Failed to invert green channel')
 
             rc_process = run_rc(self.__config.rc_for_textures_conversion_path,
                                       tiff_image_for_rc,
@@ -276,10 +258,10 @@ class _TIFConverter:
             # re-save the original image after running the RC to
             # prevent the original one from getting lost
             try:
-                if ("_ddn" in image.name):
+                if ('_ddn' in image.name):
                     image.save()
             except:
-                cbPrint("Failed to invert green channel")
+                cbPrint('Failed to invert green channel')
 
             rc_process.wait()
 
@@ -289,22 +271,22 @@ class _TIFConverter:
         self.__remove_tmp_files()
 
     def __create_normal_texture(self):
-        if ("_ddn" in image.name):
+        if ('_ddn' in image.name):
             # make a copy to prevent editing the original image
             temp_normal_image = image.copy()
             self.__invert_green_channel(temp_normal_image)
             # save to file and delete the temporary image
-            new_normal_image_path = "%s_cb_normal.%s" % (os.path.splitext(temp_normal_image.filepath_raw)[0], os.path.splitext(temp_normal_image.filepath_raw)[1])
+            new_normal_image_path = '%s_cb_normal.%s' % (os.path.splitext(temp_normal_image.filepath_raw)[0], os.path.splitext(temp_normal_image.filepath_raw)[1])
             temp_normal_image.save_render(filepath=new_normal_image_path)
             bpy.data.images.remove(temp_normal_image)
 
     def __get_rc_params(self, destination_path):
-        rc_params = ["/verbose", "/threads=cores", "/userdialog=1", "/refresh"]
+        rc_params = ['/verbose', '/threads=cores', '/userdialog=1', '/refresh']
 
         image_directory = os.path.dirname(utils.get_absolute_path_for_rc(
                 destination_path))
 
-        rc_params.append("/targetroot={!s}".format(image_directory))
+        rc_params.append('/targetroot={!s}'.format(image_directory))
 
         return rc_params
 
@@ -318,12 +300,12 @@ class _TIFConverter:
         image_extension = utils.get_extension_from_path(image.filepath)
         cbPrint(image_extension)
 
-        if ".tif" == image_extension:
-            cbPrint("Image {!r} is already a tif, not converting".format(image.name), 'debug')
+        if '.tif' == image_extension:
+            cbPrint('Image {!r} is already a tif, not converting'.format(image.name), 'debug')
             return image.filepath
 
         tiff_image_path = utils.get_path_with_new_extension(image.filepath,
-                                                            "tif")
+                                                            'tif')
         tiff_image_absolute_path = utils.get_absolute_path(tiff_image_path)
         tiff_file_name = os.path.basename(tiff_image_path)
 
@@ -348,7 +330,7 @@ class _TIFConverter:
 
     def __save_tiffs(self):
         for tmp_image, dest_image in self.__tmp_images.items():
-            cbPrint("Moving tmp image: {!r} to {!r}".format(tmp_image,
+            cbPrint('Moving tmp image: {!r} to {!r}'.format(tmp_image,
                                                             dest_image),
                     'debug')
             shutil.move(tmp_image, dest_image)
@@ -356,7 +338,7 @@ class _TIFConverter:
     def __remove_tmp_files(self):
         for tmp_image in self.__tmp_images:
             try:
-                cbPrint("Removing tmp image: {!r}".format(tmp_image), 'debug')
+                cbPrint('Removing tmp image: {!r}'.format(tmp_image), 'debug')
                 os.remove(tmp_image)
             except FileNotFoundError:
                 pass

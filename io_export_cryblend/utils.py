@@ -12,7 +12,7 @@
 # <pep8-80 compliant>
 
 
-if "bpy" in locals():
+if 'bpy' in locals():
     import imp
     imp.reload(exceptions)
 else:
@@ -43,7 +43,7 @@ to_degrees = 180.0 / math.pi
 #------------------------------------------------------------------------------
 
 def color_to_string(r, g, b, a):
-    return "{:f} {:f} {:f} {:f}".format(r, g, b, a)
+    return '{:f} {:f} {:f} {:f}'.format(r, g, b, a)
 
 
 def frame_to_time(frame):
@@ -55,16 +55,16 @@ def frame_to_time(frame):
 def matrix_to_string(matrix):
     rows = []
     for row in matrix:
-        rows.append(" ".join("%s" % column for column in row))
+        rows.append(' '.join('%s' % column for column in row))
 
-    return " ".join(rows)
+    return ' '.join(rows)
 
 
-def floats_to_string(floats, separator=" ", precision="%.6f"):
+def floats_to_string(floats, separator=' ', precision='%.6f'):
     return separator.join(precision % x for x in floats)
 
 
-def strings_to_string(strings, separator=" "):
+def strings_to_string(strings, separator=' '):
     return separator.join(string for string in strings)
 
 
@@ -86,7 +86,7 @@ def join(*items):
     strings = []
     for item in items:
         strings.append(str(item))
-    return "".join(strings)
+    return ''.join(strings)
 
 
 #------------------------------------------------------------------------------
@@ -107,7 +107,7 @@ def get_absolute_path(file_path):
 
     if is_relative:
         blend_file_path = os.path.dirname(bpy.data.filepath)
-        file_path = "%s/%s" % (blend_file_path, file_path)
+        file_path = '%s/%s' % (blend_file_path, file_path)
 
     return os.path.abspath(file_path)
 
@@ -115,12 +115,12 @@ def get_absolute_path(file_path):
 def get_absolute_path_for_rc(file_path):
     # 'z:' is for wine (linux, mac) path
     # there should be better way to determine it
-    WINE_DEFAULT_DRIVE_LETTER = "z:"
+    WINE_DEFAULT_DRIVE_LETTER = 'z:'
 
     file_path = get_absolute_path(file_path)
 
     if not sys.platform == 'win32':
-        file_path = "%s%s" % (WINE_DEFAULT_DRIVE_LETTER, file_path)
+        file_path = '%s%s' % (WINE_DEFAULT_DRIVE_LETTER, file_path)
 
     return file_path
 
@@ -150,7 +150,7 @@ def get_relative_path(filepath, start=None):
 
 def strip_blender_path_prefix(path):
     is_relative = False
-    BLENDER_RELATIVE_PATH_PREFIX = "//"
+    BLENDER_RELATIVE_PATH_PREFIX = '//'
     prefix_length = len(BLENDER_RELATIVE_PATH_PREFIX)
 
     if path.startswith(BLENDER_RELATIVE_PATH_PREFIX):
@@ -170,11 +170,11 @@ def make_relative_path(filepath, start):
 
 
 def get_path_with_new_extension(image_path, extension):
-    return "%s.%s" % (os.path.splitext(image_path)[0], extension)
+    return '%s.%s' % (os.path.splitext(image_path)[0], extension)
 
 
 def get_extension_from_path(image_path):
-    return "%s" % (os.path.splitext(image_path)[1])
+    return '%s' % (os.path.splitext(image_path)[1])
 
 
 #------------------------------------------------------------------------------
@@ -182,27 +182,27 @@ def get_extension_from_path(image_path):
 #------------------------------------------------------------------------------
 
 def clean_file():
-    for texture in get_type("textures"):
+    for texture in get_type('textures'):
         try:
             texture.image.name = replace_invalid_rc_characters(texture.image.name)
         except AttributeError:
             pass
-    for material in get_type("materials"):
+    for material in get_type('materials'):
         material.name = replace_invalid_rc_characters(material.name)
-    for node in get_type("nodes"):
+    for node in get_type('nodes'):
         node.name = replace_invalid_rc_characters(node.name)
         try:
             node.data.name = replace_invalid_rc_characters(node.data.name)
         except AttributeError:
             pass
-        if node.type == "ARMATURE":
+        if node.type == 'ARMATURE':
             for bone in node.data.bones:
                 bone.name = replace_invalid_rc_characters(bone.name)
     for node in get_export_nodes():
         nodename = get_node_name(node.name)
         nodetype = get_node_type(node.name)
         nodename = replace_invalid_rc_characters(nodename)
-        node.name = "{}.{}".format(nodename, nodetype)
+        node.name = '{}.{}'.format(nodename, nodetype)
 
 
 def replace_invalid_rc_characters(string):
@@ -210,23 +210,23 @@ def replace_invalid_rc_characters(string):
     string.strip()
 
     # Replace remaining white spaces with underscores.
-    string = "_".join(string.split())
+    string = '_'.join(string.split())
 
     character_map = {
-        "_":  ".",
-        "a":  "àáâå",
-        "c":  "ç",
-        "e":  "èéêë",
-        "i":  "ìíîï",
-        "l":  "ł",
-        "n":  "ñ",
-        "o":  "òóô",
-        "u":  "ùúû",
-        "y":  "ÿ",
-        "ss": "ß",
-        "ae": "äæ",
-        "oe": "ö",
-        "ue": "ü"
+        '_':  '.',
+        'a':  'àáâå',
+        'c':  'ç',
+        'e':  'èéêë',
+        'i':  'ìíîï',
+        'l':  'ł',
+        'n':  'ñ',
+        'o':  'òóô',
+        'u':  'ùúû',
+        'y':  'ÿ',
+        'ss': 'ß',
+        'ae': 'äæ',
+        'oe': 'ö',
+        'ue': 'ü'
     } # Expand with more individual replacement rules.
 
     # Individual replacement.
@@ -236,25 +236,25 @@ def replace_invalid_rc_characters(string):
             string = string.replace(char.upper(), good.upper())
 
     # Remove all remaining non alphanumeric characters except underscores.
-    string = re.sub("[^_$0-9A-Za-z]", "", string)
+    string = re.sub('[^_$0-9A-Za-z]', '', string)
 
     return string
 
 
 def fix_weights():
-    for object_ in get_type("skins"):
+    for object_ in get_type('skins'):
         override = get_3d_context(object_)
         try:
             bpy.ops.object.vertex_group_normalize_all(override, lock_active=False)
         except:
-            raise exceptions.CryBlendException("Please fix weightless vertices first.")
-    cbPrint("Weights Corrected.")
+            raise exceptions.CryBlendException('Please fix weightless vertices first.')
+    cbPrint('Weights Corrected.')
 
 
 def apply_modifiers():
     for object_ in bpy.data.objects:
         for mod in object_.modifiers:
-            if mod.type != "ARMATURE":
+            if mod.type != 'ARMATURE':
                 try:
                     bpy.ops.object.modifier_apply(modifier=mod.name)
                 except RuntimeError:
@@ -276,15 +276,15 @@ def get_export_nodes():
 
 def get_type(type_):
     dispatch = {
-        "nodes": __get_nodes,
-        "geometry": __get_geometry,
-        "controllers": __get_controllers,
-        "skins": __get_skins,
-        "fakebones": __get_fakebones,
-        "bone_geometry": __get_bone_geometry,
-        "materials": __get_materials,
-        "texture_slots": __get_texture_slots,
-        "textures": __get_textures
+        'nodes': __get_nodes,
+        'geometry': __get_geometry,
+        'controllers': __get_controllers,
+        'skins': __get_skins,
+        'fakebones': __get_fakebones,
+        'bone_geometry': __get_bone_geometry,
+        'materials': __get_materials,
+        'texture_slots': __get_texture_slots,
+        'textures': __get_textures
     }
     return list(set(dispatch[type_]()))
 
@@ -297,8 +297,8 @@ def __get_nodes():
 
 def __get_geometry():
     items = []
-    allowed = {"MESH"}
-    for object_ in get_type("nodes"):
+    allowed = {'MESH'}
+    for object_ in get_type('nodes'):
         if object_.type in allowed and not is_fakebone(object_):
            items.append(object_)
 
@@ -306,31 +306,31 @@ def __get_geometry():
 
 def __get_controllers():
     items = []
-    for object_ in get_type("nodes"):
-        if not ("_boneGeometry" in object_.name or
+    for object_ in get_type('nodes'):
+        if not ('_boneGeometry' in object_.name or
                 is_fakebone(object_)):
             if object_.parent is not None:
-                if object_.parent.type == "ARMATURE":
+                if object_.parent.type == 'ARMATURE':
                     items.append(object_.parent)
 
     return items
 
 def __get_skins():
     items = []
-    allowed = {"MESH"}
-    for object_ in get_type("nodes"):
+    allowed = {'MESH'}
+    for object_ in get_type('nodes'):
         if object_.type in allowed:
-            if not ("_boneGeometry" in object_.name or
+            if not ('_boneGeometry' in object_.name or
                     is_fakebone(object_)):
                 if object_.parent is not None:
-                    if object_.parent.type == "ARMATURE":
+                    if object_.parent.type == 'ARMATURE':
                         items.append(object_)
 
     return items
 
 def __get_fakebones():
     items = []
-    allowed = {"MESH"}
+    allowed = {'MESH'}
     for object_ in bpy.data.objects:
         if is_fakebone(object_):
             items.append(object_)
@@ -339,18 +339,18 @@ def __get_fakebones():
 
 def __get_bone_geometry():
     items = []
-    allowed = {"MESH"}
-    for object_ in get_type("nodes"):
+    allowed = {'MESH'}
+    for object_ in get_type('nodes'):
         if (object_.type in allowed and
-                "_boneGeometry" in object_.name):
+                '_boneGeometry' in object_.name):
             items.append(object_)
 
     return items
 
 def __get_materials():
     items = []
-    allowed = {"MESH"}
-    for object_ in get_type("nodes"):
+    allowed = {'MESH'}
+    for object_ in get_type('nodes'):
         if object_.type in allowed:
             for material_slot in object_.material_slots:
                 items.append(material_slot.material)
@@ -359,14 +359,14 @@ def __get_materials():
 
 def __get_texture_slots():
     items = []
-    for material in get_type("materials"):
+    for material in get_type('materials'):
         items.extend(get_texture_slots_for_material(material))
 
     return items
 
 def __get_textures():
     items = []
-    texture_slots = get_type("texture_slots")
+    texture_slots = get_type('texture_slots')
     for texture_slot in texture_slots:
         items.append(texture_slot.texture)
 
@@ -412,7 +412,7 @@ def count_texture_types(texture_slots):
 
 
 def raise_exception_if_textures_have_same_type(texture_types):
-    ERROR_TEMPLATE = "There is more than one texture of type {!r}."
+    ERROR_TEMPLATE = 'There is more than one texture of type {!r}.'
     error_messages = []
 
     for type_name, type_count in  texture_types.items():
@@ -420,8 +420,8 @@ def raise_exception_if_textures_have_same_type(texture_types):
             error_messages.append(ERROR_TEMPLATE.format(type_name.lower()))
 
     if error_messages:
-        raise exceptions.CryBlendException("\n".join(error_messages) + "\n"
-                                    + "Please correct that and try again.")
+        raise exceptions.CryBlendException('\n'.join(error_messages) + '\n'
+                                    + 'Please correct that and try again.')
 
 
 def is_valid_image(image):
@@ -433,15 +433,15 @@ def is_valid_image(image):
 #------------------------------------------------------------------------------
 
 def get_material_color(material, type_):
-    if type_ == "emission":
+    if type_ == 'emission':
         r = b = g = material.emit
-    elif type_ == "ambient":
+    elif type_ == 'ambient':
         r = b = g = material.ambient
-    elif type_ == "diffuse":
+    elif type_ == 'diffuse':
         r = material.diffuse_color.r
         g = material.diffuse_color.g
         b = material.diffuse_color.b
-    elif type_ == "specular":
+    elif type_ == 'specular':
         r = material.specular_color.r
         g = material.specular_color.g
         b = material.specular_color.b
@@ -451,32 +451,32 @@ def get_material_color(material, type_):
 
 
 def get_material_attribute(material, type_):
-    if type_ == "shininess":
+    if type_ == 'shininess':
         float = material.specular_hardness
-    elif type_ == "index_refraction":
+    elif type_ == 'index_refraction':
         float = material.alpha
 
     return str(float)
 
 
 def is_cryblend_material(materialname):
-    if re.search(".+__[0-9]+__.*__phys[A-Za-z0-9]+", materialname):
+    if re.search('.+__[0-9]+__.*__phys[A-Za-z0-9]+', materialname):
         return True
     else:
         return False
 
 
 def extract_cryblend_properties(materialname):
-    """Returns the CryBlend properties of a materialname as dict or
+    '''Returns the CryBlend properties of a materialname as dict or
     None if name is invalid.
-    """
+    '''
     if is_cryblend_material(materialname):
-        groups = re.findall("(.+)__([0-9]+)__(.*)__(phys[A-Za-z0-9]+)", materialname)
+        groups = re.findall('(.+)__([0-9]+)__(.*)__(phys[A-Za-z0-9]+)', materialname)
         properties = {}
-        properties["ExportNode"] = groups[0][0]
-        properties["Number"] = int(groups[0][1])
-        properties["Name"] = groups[0][2]
-        properties["Physics"] = groups[0][3]
+        properties['ExportNode'] = groups[0][0]
+        properties['Number'] = int(groups[0][1])
+        properties['Name'] = groups[0][2]
+        properties['Physics'] = groups[0][3]
         return properties
     return None
 
@@ -486,7 +486,7 @@ def extract_cryblend_properties(materialname):
 #------------------------------------------------------------------------------
 
 def is_export_node(nodename):
-    extensions = [".cgf", ".cga", ".chr", ".skin", ".anm", ".i_caf", ".caf"]
+    extensions = ['.cgf', '.cga', '.chr', '.skin', '.anm', '.i_caf', '.caf']
     for extension in extensions:
         if nodename.endswith(extension):
             return True
@@ -509,7 +509,7 @@ def get_node_name(groupname):
 
 
 def get_node_type(groupname):
-    node_components = groupname.split(".")
+    node_components = groupname.split('.')
     return node_components[-1]
 
 
@@ -518,14 +518,14 @@ def get_node_type(groupname):
 #------------------------------------------------------------------------------
 
 def find_fakebone(bonename):
-    for object_ in get_type("fakebones"):
-        if object_["fakebone"] == bonename:
+    for object_ in get_type('fakebones'):
+        if object_['fakebone'] == bonename:
             return object_
 
 
 def is_fakebone(object_):
     try:
-        name = object_["fakebone"]
+        name = object_['fakebone']
         return True
     except KeyError:
         return False
@@ -547,7 +547,7 @@ def add_fakebones():
         fakebone = bpy.context.active_object
         for group in armature.users_group:
             group.objects.link(fakebone)
-        fakebone["fakebone"] = pose_bone.name
+        fakebone['fakebone'] = pose_bone.name
         scene.objects.active = armature
         armature.data.bones.active = pose_bone.bone
         bpy.ops.object.parent_set(type='BONE')
@@ -558,7 +558,7 @@ def add_fakebones():
 def remove_fakebones():
     '''Select to remove all fakebones from the scene.'''
     deselect_all()
-    for fakebone in get_type("fakebones"):
+    for fakebone in get_type('fakebones'):
         fakebone.select = True
         bpy.ops.object.delete(use_global=False)
 
@@ -572,7 +572,7 @@ def keyframe_fakebones(armature):
     # Stage 1: Find unique keyframes
     animation_data = armature.animation_data
     if (animation_data is None or animation_data.action is None):
-        return {"FINISHED"}
+        return {'FINISHED'}
     action = animation_data.action
     for fcurve in action.fcurves:
         for keyframe in fcurve.keyframe_points:
@@ -586,7 +586,7 @@ def keyframe_fakebones(armature):
         for bone in armature.pose.bones:
             fakebone = scene.objects.get(bone.name)
             if (fakebone is None):
-                return {"FINISHED"}
+                return {'FINISHED'}
             bonecm = fakebone.matrix_local
             if (bone.parent and bone.parent.parent):
                 bonepm = scene.objects.get(bone.parent.name).matrix_local
@@ -607,8 +607,8 @@ def keyframe_fakebones(armature):
             fakebone = scene.objects.get(bone.name)
             fakebone.location = location_list[i]
             fakebone.rotation_euler = rotation_list[i]
-            fakebone.keyframe_insert(data_path="location")
-            fakebone.keyframe_insert(data_path="rotation_euler")
+            fakebone.keyframe_insert(data_path='location')
+            fakebone.keyframe_insert(data_path='rotation_euler')
             i += 1
             
     scene.frame_set(scene.frame_start)
@@ -620,7 +620,7 @@ def keyframe_fakebones(armature):
 
 def find_bone_geometry(bonename):
     for object_ in bpy.context.scene.objects:
-        if object_.name == "{!s}_boneGeometry".format(bonename):
+        if object_.name == '{!s}_boneGeometry'.format(bonename):
             return object_
 
 
@@ -645,12 +645,12 @@ def count_root_bones(armature):
 
 def get_armature_for_object(object_):
     if object_.parent is not None:
-        if object_.parent.type == "ARMATURE":
+        if object_.parent.type == 'ARMATURE':
             return object_.parent
 
 
 def get_armature():
-    for object_ in get_type("controllers"):
+    for object_ in get_type('controllers'):
         return object_
 
 
@@ -701,19 +701,19 @@ def get_3d_context(object_):
     window = bpy.context.window
     screen = window.screen
     for area in screen.areas:
-        if area.type == "VIEW_3D":
+        if area.type == 'VIEW_3D':
             area3d = area
             break
     for region in area3d.regions:
-        if region.type == "WINDOW":
+        if region.type == 'WINDOW':
             region3d = region
             break
     override = {
-        "window": window,
-        "screen": screen,
-        "area": area3d,
-        "region": region3d,
-        "object": object_
+        'window': window,
+        'screen': screen,
+        'area': area3d,
+        'region': region3d,
+        'object': object_
     }
 
     return override
@@ -724,7 +724,7 @@ def get_3d_context(object_):
 #------------------------------------------------------------------------------
 
 def get_guid():
-    GUID = "{%s-%s-%s-%s-%s}" % (random_hex_sector(8),
+    GUID = '{%s-%s-%s-%s-%s}' % (random_hex_sector(8),
                                  random_hex_sector(4),
                                  random_hex_sector(4),
                                  random_hex_sector(4),
@@ -733,7 +733,7 @@ def get_guid():
 
 
 def random_hex_sector(length):
-    fixed_length_hex_format = "%0" + str(length) + "x"
+    fixed_length_hex_format = '%0' + str(length) + 'x'
     return fixed_length_hex_format % random.randrange(16 ** length)
 
 
@@ -742,27 +742,27 @@ def random_hex_sector(length):
 #------------------------------------------------------------------------------
 
 def generate_file_contents(type_):
-    if type_ == "chrparams":
-        return """<Params>\
+    if type_ == 'chrparams':
+        return '''<Params>\
 <AnimationList>\
-<Animation name="???" path="???.caf"/>\
+<Animation name='???' path='???.caf'/>\
 </AnimationList>\
-</Params>"""
+</Params>'''
 
-    elif type_ == "cdf":
-        return """<CharacterDefinition>\
-<Model File="???.chr" Material="???"/>\
+    elif type_ == 'cdf':
+        return '''<CharacterDefinition>\
+<Model File='???.chr' Material='???'/>\
 <AttachmentList>\
-<Attachment Type="CA_BONE" AName="???" Rotation="1,0,0,0" Position="0,0,0" BoneName="???" Flags="0"/>\
-<Attachment Type="CA_SKIN" AName="???" Binding="???.skin" Flags="0"/>\
+<Attachment Type='CA_BONE' AName='???' Rotation='1,0,0,0' Position='0,0,0' BoneName='???' Flags='0'/>\
+<Attachment Type='CA_SKIN' AName='???' Binding='???.skin' Flags='0'/>\
 </AttachmentList>\
-<ShapeDeformation COL0="0" COL1="0" COL2="0" COL3="0" COL4="0" COL5="0" COL6="0" COL7="0"/>\
-</CharacterDefinition>"""
+<ShapeDeformation COL0='0' COL1='0' COL2='0' COL3='0' COL4='0' COL5='0' COL6='0' COL7='0'/>\
+</CharacterDefinition>'''
 
 
 def generate_file(filepath, contents):
     if not os.path.exists(filepath):
-        file = open(filepath, "w")
+        file = open(filepath, 'w')
         file.write(contents)
         file.close()
 
@@ -770,7 +770,7 @@ def generate_file(filepath, contents):
 def generate_xml(filepath, contents):
     if not os.path.exists(filepath):
         script = parseString(contents)
-        contents = script.toprettyxml(indent="    ")
+        contents = script.toprettyxml(indent='    ')
         generate_file(filepath, contents)
 
 
@@ -786,7 +786,7 @@ def remove_file(filepath):
 def write_source(id_, type_, array, params):
     doc = Document()
     length = len(array)
-    if type_ == "float4x4":
+    if type_ == 'float4x4':
         stride = 16
     elif len(params) == 0:
         stride = 1
@@ -794,32 +794,32 @@ def write_source(id_, type_, array, params):
         stride = len(params)
     count = int(length / stride)
 
-    source = doc.createElement("source")
-    source.setAttribute("id", id_)
+    source = doc.createElement('source')
+    source.setAttribute('id', id_)
 
-    if type_ == "float4x4":
-        source_data = doc.createElement("float_array")
+    if type_ == 'float4x4':
+        source_data = doc.createElement('float_array')
     else:
-        source_data = doc.createElement("{!s}_array".format(type_))
-    source_data.setAttribute("id", "{!s}-array".format(id_))
-    source_data.setAttribute("count", str(length))
+        source_data = doc.createElement('{!s}_array'.format(type_))
+    source_data.setAttribute('id', '{!s}-array'.format(id_))
+    source_data.setAttribute('count', str(length))
     try:
         source_data.appendChild(doc.createTextNode(floats_to_string(array)))
     except TypeError:
         source_data.appendChild(doc.createTextNode(strings_to_string(array)))
-    technique_common = doc.createElement("technique_common")
-    accessor = doc.createElement("accessor")
-    accessor.setAttribute("source", "#{!s}-array".format(id_))
-    accessor.setAttribute("count", str(count))
-    accessor.setAttribute("stride", str(stride))
+    technique_common = doc.createElement('technique_common')
+    accessor = doc.createElement('accessor')
+    accessor.setAttribute('source', '#{!s}-array'.format(id_))
+    accessor.setAttribute('count', str(count))
+    accessor.setAttribute('stride', str(stride))
     for param in params:
-        param_node = doc.createElement("param")
-        param_node.setAttribute("name", param)
-        param_node.setAttribute("type", type_)
+        param_node = doc.createElement('param')
+        param_node.setAttribute('name', param)
+        param_node.setAttribute('type', type_)
         accessor.appendChild(param_node)
     if len(params) == 0:
-        param_node = doc.createElement("param")
-        param_node.setAttribute("type", type_)
+        param_node = doc.createElement('param')
+        param_node.setAttribute('type', type_)
         accessor.appendChild(param_node)
     technique_common.appendChild(accessor)
 
@@ -831,15 +831,15 @@ def write_source(id_, type_, array, params):
 
 def write_input(name, offset, type_, semantic):
     doc = Document()
-    id_ = "{!s}-{!s}".format(name, type_)
-    input = doc.createElement("input")
+    id_ = '{!s}-{!s}'.format(name, type_)
+    input = doc.createElement('input')
 
     if offset is not None:
-        input.setAttribute("offset", str(offset))
-    input.setAttribute("semantic", semantic)
-    if semantic == "TEXCOORD":
-        input.setAttribute("set", "0")
-    input.setAttribute("source", "#{!s}".format(id_))
+        input.setAttribute('offset', str(offset))
+    input.setAttribute('semantic', semantic)
+    if semantic == 'TEXCOORD':
+        input.setAttribute('set', '0')
+    input.setAttribute('source', '#{!s}'.format(id_))
 
     return input
 
@@ -848,32 +848,32 @@ def write_input(name, offset, type_, semantic):
 # http://ronrothman.com/
 #    public/leftbrained/xml-dom-minidom-toprettyxml-and-silly-whitespace/
 # modified to use the current version of shipped python
-def fix_write_xml(self, writer, indent="", addindent="", newl=""):
+def fix_write_xml(self, writer, indent='', addindent='', newl=''):
     # indent = current indentation
     # addindent = indentation to add to higher levels
     # newl = newline string
-        writer.write(indent + "<" + self.tagName)
+        writer.write(indent + '<' + self.tagName)
         attrs = self._get_attributes()
         for a_name in sorted(attrs.keys()):
-            writer.write(" %s=\"" % a_name)
+            writer.write(' %s=\'' % a_name)
             xml.dom.minidom._write_data(writer, attrs[a_name].value)
-            writer.write("\"")
+            writer.write('\'')
         if self.childNodes:
             if (len(self.childNodes) == 1
                 and self.childNodes[0].nodeType
                     == xml.dom.minidom.Node.TEXT_NODE):
-                writer.write(">")
-                self.childNodes[0].writexml(writer, "", "", "")
-                writer.write("</%s>%s" % (self.tagName, newl))
+                writer.write('>')
+                self.childNodes[0].writexml(writer, '', '', '')
+                writer.write('</%s>%s' % (self.tagName, newl))
                 return
-            writer.write(">%s" % (newl))
+            writer.write('>%s' % (newl))
             for node in self.childNodes:
                 node.writexml(writer, indent + addindent, addindent, newl)
-            writer.write("%s</%s>%s" % (indent, self.tagName, newl))
+            writer.write('%s</%s>%s' % (indent, self.tagName, newl))
         else:
-            writer.write("/>%s" % (newl))
+            writer.write('/>%s' % (newl))
 
 
 # this is needed if you want to access more than the first def
-if __name__ == "__main__":
+if __name__ == '__main__':
     register()
