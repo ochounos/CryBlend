@@ -1480,16 +1480,11 @@ class AddMaterialPhysicsMenu(bpy.types.Menu):
 
         layout.label(text="Add Material Physics")
         layout.separator()
-        prop = layout.operator("material.add_material_physics", text="physDefault", icon='PHYSICS')
-        prop.type_ = "physDefault"
-        prop = layout.operator("material.add_material_physics", text="physProxyNoDraw", icon='PHYSICS')
-        prop.type_ = "physProxyNoDraw"
-        prop = layout.operator("material.add_material_physics", text="physNone", icon='PHYSICS')
-        prop.type_ = "physNone"
-        prop = layout.operator("material.add_material_physics", text="physObstruct", icon='PHYSICS')
-        prop.type_ = "physObstruct"
-        prop = layout.operator("material.add_material_physics", text="physNoCollide", icon='PHYSICS')
-        prop.type_ = "physNoCollide"
+        layout.operator("material.add_material_physics", text="physDefault", icon='PHYSICS').type_ = "physDefault"
+        layout.operator("material.add_material_physics", text="physProxyNoDraw", icon='PHYSICS').type_ = "physProxyNoDraw"
+        layout.operator("material.add_material_physics", text="physNone", icon='PHYSICS').type_ = "physNone"
+        layout.operator("material.add_material_physics", text="physObstruct", icon='PHYSICS').type_ = "physObstruct"
+        layout.operator("material.add_material_physics", text="physNoCollide", icon='PHYSICS').type_ = "physNoCollide"
 
 
 class CryBlendReducedMenu(bpy.types.Menu):
