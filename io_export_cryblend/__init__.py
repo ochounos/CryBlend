@@ -112,24 +112,24 @@ class FindRC(bpy.types.Operator, PathSelectTemplate):
         return ExportHelper.invoke(self, context, event)
 
 
-class FindRCForTextureConversion(bpy.types.Operator, PathSelectTemplate):
+class FindTextureRC(bpy.types.Operator, PathSelectTemplate):
     '''Select if you are using RC from cryengine \
 newer than 3.4.5. Provide RC path from cryengine 3.4.5 \
 to be able to export your textures as dds files.'''
 
     bl_label = "Find the Resource Compiler for Texture Conversion"
-    bl_idname = "file.find_rc_for_texture_conversion"
+    bl_idname = "file.find_texture_rc"
 
     filename_ext = ".exe"
 
     def process(self, filepath):
-        Configuration.rc_for_texture_conversion_path = "%s" % filepath
+        Configuration.texture_rc_path = "%s" % filepath
         cbPrint("Found RC at {!r}.".format(
-                        Configuration.rc_for_texture_conversion_path),
+                        Configuration.texture_rc_path),
                 'debug')
 
     def invoke(self, context, event):
-        self.filepath = Configuration.rc_for_texture_conversion_path
+        self.filepath = Configuration.texture_rc_path
 
         return ExportHelper.invoke(self, context, event)
 
@@ -139,18 +139,18 @@ class SelectTexturesDirectory(bpy.types.Operator, PathSelectTemplate):
 for textures in .mtl file.'''
 
     bl_label = "Select Textures Directory"
-    bl_idname = "file.select_textures_directory"
+    bl_idname = "file.select_texture_directory"
 
     filename_ext = ""
 
     def process(self, filepath):
-        Configuration.textures_directory = "%s" % os.path.dirname(filepath)
+        Configuration.texture_directory = "%s" % os.path.dirname(filepath)
         cbPrint("Textures directory: {!r}.".format(
-                                            Configuration.textures_directory),
+                                            Configuration.texture_directory),
                 'debug')
 
     def invoke(self, context, event):
-        self.filepath = Configuration.textures_directory
+        self.filepath = Configuration.texture_directory
 
         return ExportHelper.invoke(self, context, event)
 
@@ -271,105 +271,6 @@ class ApplyTransforms(bpy.types.Operator):
 
 
 #------------------------------------------------------------------------------
-# Material Tools
-#------------------------------------------------------------------------------
-
-class SetMaterialNames(bpy.types.Operator):
-    '''Materials will be named after the first CryExportNode the Object is in.'''
-    """Set Material Names by heeding the RC naming scheme:
-        - CryExportNode group name
-        - Strict number sequence beginning with 1 for each CryExportNode (max 999)
-        - Physics
-    """
-    bl_label = "Update material names in CryExportNodes"
-    bl_idname = "material.set_material_names"
-    physUserInput = StringProperty(name="Physics", default = "physDefault")
-
-    def execute(self, context):
-        # Revert all materials to fetch also those that are no longer in a group
-        # and store their possible physics properties in a dictionary.
-        physicsProperties = getMaterialPhysics()
-        removeCryBlendProperties()
-
-        # Create a dictionary with all CryExportNodes to store the current number
-        # of materials in it.
-        materialCounter = getMaterialCounter()
-
-        for group in bpy.data.groups:
-            if utils.is_export_node(group.name):
-                for object in group.objects:
-                    for slot in object.material_slots:
-
-                        # Skip materials that have been renamed already.
-                        if not utils.is_cryblend_material(slot.material.name):
-                            materialCounter[group.name] += 1
-                            materialOldName = slot.material.name
-
-                            # Load stored Physics if available for that material.
-                            if physicsProperties.get(slot.material.name):
-                                physics = physicsProperties[slot.material.name]
-                            else:
-                                physics = self.physUserInput
-
-                            # Rename.
-                            slot.material.name = "{}__{:03d}__{}__{}".format(
-                                    utils.get_node_name(group.name.replace("CryExportNode_", "")),
-                                    materialCounter[group.name],
-                                    utils.replace_invalid_rc_characters(materialOldName),
-                                    physics)
-                            message = "Renamed {} to {}".format(
-                                    materialOldName,
-                                    slot.material.name)
-                            self.report({'INFO'}, message)
-                            cbPrint(message)
-        return {'FINISHED'}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
-
-
-class RemoveCryBlendProperties(bpy.types.Operator):
-    '''Removes all CryBlend properties from material names. This includes \
-physics, so they get lost.'''
-    bl_label = "Remove CryBlend properties from material names"
-    bl_idname = "material.remove_cry_blend_properties"
-
-    def execute(self, context):
-        removeCryBlendProperties()
-        message = "Removed CryBlend properties from material names"
-        self.report({'INFO'}, message)
-        cbPrint(message)
-        return {'FINISHED'}
-
-
-def getMaterialCounter():
-    """Returns a dictionary with all CryExportNodes."""
-    materialCounter = {}
-    for group in bpy.data.groups:
-        if utils.is_export_node(group.name):
-            materialCounter[group.name] = 0
-    return materialCounter
-
-
-def removeCryBlendProperties():
-    """Removes CryBlend properties from all material names."""
-    for material in bpy.data.materials:
-        properties = utils.extract_cryblend_properties(material.name)
-        if properties:
-            material.name = properties["Name"]
-
-
-def getMaterialPhysics():
-    """Returns a dictionary with the physics of all material names."""
-    physicsProperties = {}
-    for material in bpy.data.materials:
-        properties = utils.extract_cryblend_properties(material.name)
-        if properties:
-            physicsProperties[properties["Name"]] = properties["Physics"]
-    return physicsProperties
-
-
-#------------------------------------------------------------------------------
 # CryEngine-Related Tools
 #------------------------------------------------------------------------------
 
@@ -384,7 +285,7 @@ be converted to the selected shape in CryEngine.'''
     def execute(self, context):
         active = bpy.context.active_object
 
-        if (active.type == "MESH"):
+        if active.type == "MESH":
             already_exists = False
             for object_ in bpy.data.objects:
                 if self.__is_proxy(object_.name):
@@ -420,14 +321,14 @@ be converted to the selected shape in CryEngine.'''
         proxy_material = bpy.data.materials.new(name)
         bound_box.data.materials.append(proxy_material)
 
-        if (getattr(self, "type_") == "box"):
-            bpy.ops.object.add_box_proxy_property()
-        elif (getattr(self, "type_") == "capsule"):
-            bpy.ops.object.add_capsule_proxy_property()
-        elif (getattr(self, "type_") == "cylinder"):
-            bpy.ops.object.add_cylinder_proxy_property()
-        else: # sphere proxy
-            bpy.ops.object.add_sphere_proxy_property()
+        # if (getattr(self, "type_") == "box"):
+            # bpy.ops.object.add_property("box")
+        # elif (getattr(self, "type_") == "capsule"):
+            # bpy.ops.object.add_property("capsule")
+        # elif (getattr(self, "type_") == "cylinder"):
+            # bpy.ops.object.add_property("cylinder")
+        # else: # sphere proxy
+            # bpy.ops.object.add_property("sphere")
 
         bpy.context.scene.cursor_location = old_origin
         bpy.ops.object.select_all(action="DESELECT")
@@ -1040,7 +941,7 @@ class Export(bpy.types.Operator, ExportHelper):
             description="Apply all modifiers before exporting.",
             default=True,
             )
-    donot_merge = BoolProperty(
+    do_not_merge = BoolProperty(
             name="Do Not Merge Nodes",
             description="Generally a good idea.",
             default=True,
@@ -1050,14 +951,9 @@ class Export(bpy.types.Operator, ExportHelper):
             description="Create MTL files for materials.",
             default=False,
             )
-    convert_source_image_to_dds = BoolProperty(
-            name="Convert Textures to DDS",
+    do_textures = BoolProperty(
+            name="Do Textures",
             description="Converts source textures to DDS while exporting materials.",
-            default=False,
-            )
-    save_tiff_during_conversion = BoolProperty(
-            name="Save TIFF During Conversion",
-            description="Saves TIFF images that are generated during conversion to DDS.",
             default=False,
             )
     make_chrparams = BoolProperty(
@@ -1096,8 +992,13 @@ class Export(bpy.types.Operator, ExportHelper):
             default=False,
             )
     save_dae = BoolProperty(
-            name="Save DAE File",
+            name="Save DAE",
             description="Save the DAE file for developing purposes.",
+            default=False,
+            )
+    save_tiffs = BoolProperty(
+            name="Save TIFFs",
+            description="Saves TIFF images that are generated during conversion to DDS.",
             default=False,
             )
     run_in_profiler = BoolProperty(
@@ -1111,10 +1012,9 @@ class Export(bpy.types.Operator, ExportHelper):
             attributes = (
                 'filepath',
                 'apply_modifiers',
-                'donot_merge',
+                'do_not_merge',
                 'do_materials',
-                'convert_source_image_to_dds',
-                'save_tiff_during_conversion',
+                'do_textures',
                 'make_chrparams',
                 'make_cdf',
                 'include_ik',
@@ -1123,6 +1023,7 @@ class Export(bpy.types.Operator, ExportHelper):
                 'make_layer',
                 'disable_rc',
                 'save_dae',
+                'save_tiffs',
                 'run_in_profiler'
             )
 
@@ -1131,9 +1032,9 @@ class Export(bpy.types.Operator, ExportHelper):
 
             setattr(self, 'cryblend_version', VERSION)
             setattr(self, 'rc_path', Configuration.rc_path)
-            setattr(self, 'rc_for_textures_conversion_path',
-                    Configuration.rc_for_texture_conversion_path)
-            setattr(self, 'textures_dir', Configuration.textures_directory)
+            setattr(self, 'texture_rc_path',
+                    Configuration.texture_rc_path)
+            setattr(self, 'texture_dir', utils.build_path(os.path.dirname(self.filepath), "textures"))
 
     def execute(self, context):
         cbPrint(Configuration.rc_path, 'debug')
@@ -1145,9 +1046,8 @@ class Export(bpy.types.Operator, ExportHelper):
                 cProfile.runctx('export.save(config)', {},
                                 {'export': export, 'config': config})
             else:
+                
                 export.save(config)
-
-            self.filepath = '//'
 
         except exceptions.CryBlendException as exception:
             cbPrint(exception.what(), 'error')
@@ -1162,13 +1062,12 @@ class Export(bpy.types.Operator, ExportHelper):
         box = col.box()
         box.label("General", icon="WORLD")
         box.prop(self, "apply_modifiers")
-        box.prop(self, "donot_merge")
+        box.prop(self, "do_not_merge")
 
         box = col.box()
         box.label("Image and Material", icon="TEXTURE")
         box.prop(self, "do_materials")
-        box.prop(self, "convert_source_image_to_dds")
-        box.prop(self, "save_tiff_during_conversion")
+        box.prop(self, "do_textures")
 
         box = col.box()
         box.label("Character", icon="ARMATURE_DATA")
@@ -1189,6 +1088,7 @@ class Export(bpy.types.Operator, ExportHelper):
         box.label("Developer Tools", icon="MODIFIER")
         box.prop(self, "disable_rc")
         box.prop(self, "save_dae")
+        box.prop(self, "save_tiffs")
         box.prop(self, "run_in_profiler")
 
 
@@ -1264,12 +1164,6 @@ class CryUtilitiesPanel(View3DPanel, Panel):
     def draw(self, context):
         layout = self.layout
         col = layout.column(align=True)
-
-        col.label("Materials", icon="MATERIAL")
-        col.separator()
-        col.operator("material.set_material_names", text="Do Material Convention")
-        col.operator("material.remove_cry_blend_properties", text="Undo Material Convention")
-        col.separator()
 
         col.label("Add Physics Proxy", icon="ROTATE")
         col.separator()
@@ -1360,9 +1254,9 @@ class ConfigurationsPanel(View3DPanel, Panel):
         col.label("Configure", icon="NEWFOLDER")
         col.separator()
         col.operator("file.find_rc", text="Find RC")
-        col.operator("file.find_rc_for_texture_conversion", text="Find Texture RC")
+        col.operator("file.find_texture_rc", text="Find Texture RC")
         col.separator()
-        col.operator("file.select_textures_directory", text="Select Textures Folder")
+        col.operator("file.select_texture_directory", text="Select Textures Folder")
 
 
 #------------------------------------------------------------------------------
@@ -1380,9 +1274,6 @@ class CryBlendMainMenu(bpy.types.Menu):
         # layout.operator("open_donate.wp", icon='FORCE_DRAG')
         layout.operator("object.add_cry_export_node", text="Add ExportNode", icon="GROUP")
         layout.operator("object.selected_to_cry_export_nodes", text="ExportNodes from Objects")
-        layout.separator()
-        layout.operator("material.set_material_names", text="Do Material Convention", icon="MATERIAL")
-        layout.operator("material.remove_cry_blend_properties", text="Undo Material Convention")
         layout.separator()
         layout.operator("object.apply_transforms", text="Apply All Transforms", icon="MESH_DATA")
         layout.separator()
@@ -1498,86 +1389,59 @@ class CustomPropertiesMenu(bpy.types.Menu):
 
         col = row.column()
         col.label("Rendermesh")
-        prop = col.operator("object.add_property", text="Mass", icon="FORCE_LENNARDJONES")
-        prop.type_ = "mass"
-        prop = col.operator("object.add_property", text="Density", icon="BBOX")
-        prop.type_ = "density"
-        prop = col.operator("object.add_property", text="Pieces", icon="STICKY_UVS_DISABLE")
-        prop.type_ = "pieces"
+        col.operator("object.add_property", text="Mass", icon="FORCE_LENNARDJONES").type_ = "mass"
+        col.operator("object.add_property", text="Density", icon="BBOX").type_ = "density"
+        col.operator("object.add_property", text="Pieces", icon="STICKY_UVS_DISABLE").type_ = "pieces"
         col.label(" ")
         col.label(" ")
         col.separator()
-        prop = col.operator("object.add_property", text="Entity", icon="FILE_TICK")
-        prop.type_ = "entity"
-        prop = col.operator("object.add_property", text="Dynamic", icon="FILE_TICK")
-        prop.type_ = "dynamic"
-        prop = col.operator("object.add_property", text="No Hit Refinement", icon="FILE_TICK")
-        prop.type_ = "no_hit_refinement"
+        col.operator("object.add_property", text="Entity", icon="FILE_TICK").type_ = "entity"
+        col.operator("object.add_property", text="Dynamic", icon="FILE_TICK").type_ = "dynamic"
+        col.operator("object.add_property", text="No Hit Refinement", icon="FILE_TICK").type_ = "no_hit_refinement"
 
         col = row.column()
         col.label("Physics Proxy")
-        prop = col.operator("object.add_property", text="Box", icon="META_CUBE")
-        prop.type_ = "box"
-        prop = col.operator("object.add_property", text="Cylinder", icon="META_CAPSULE")
-        prop.type_ = "cylinder"
-        prop = col.operator("object.add_property", text="Capsule", icon="META_ELLIPSOID")
-        prop.type_ = "capsule"
-        prop = col.operator("object.add_property", text="Sphere", icon="META_BALL")
-        prop.type_ = "sphere"
-        prop = col.operator("object.add_property", text="Not a Primitive", icon="X")
-        prop.type_ = "notaprim"
+        col.operator("object.add_property", text="Box", icon="META_CUBE").type_ = "box"
+        col.operator("object.add_property", text="Cylinder", icon="META_CAPSULE").type_ = "cylinder"
+        col.operator("object.add_property", text="Capsule", icon="META_ELLIPSOID").type_ = "capsule"
+        col.operator("object.add_property", text="Sphere", icon="META_BALL").type_ = "sphere"
+        col.operator("object.add_property", text="Not a Primitive", icon="X").type_ = "notaprim"
         col.separator()
-        prop = col.operator("object.add_property", text="No Explosion Occlusion", icon="FILE_TICK")
-        prop.type_ = "no_explosion_occlusion"
-        prop = col.operator("object.add_property", text="Other Rendermesh", icon="FILE_TICK")
-        prop.type_ = "other_rendermesh"
-        prop = col.operator("object.add_property", text="Colltype Player", icon="FILE_TICK")
-        prop.type_ = "colltype_player"
+        col.operator("object.add_property", text="No Explosion Occlusion", icon="FILE_TICK").type_ = "no_explosion_occlusion"
+        col.operator("object.add_property", text="Other Rendermesh", icon="FILE_TICK").type_ = "other_rendermesh"
+        col.operator("object.add_property", text="Colltype Player", icon="FILE_TICK").type_ = "colltype_player"
 
         col = row.column()
         col.label("Joint Node")
-        prop = col.operator("object.add_property", text="Bend", icon="LINCURVE")
-        prop.type_ = "bend"
-        prop = col.operator("object.add_property", text="Twist", icon="MOD_SCREW")
-        prop.type_ = "twist"
-        prop = col.operator("object.add_property", text="Pull", icon="FULLSCREEN_ENTER")
-        prop.type_ = "pull"
-        prop = col.operator("object.add_property", text="Push", icon="FULLSCREEN_EXIT")
-        prop.type_ = "push"
-        prop = col.operator("object.add_property", text="Shift", icon="NEXT_KEYFRAME")
-        prop.type_ = "shift"
+        col.operator("object.add_property", text="Bend", icon="LINCURVE").type_ = "bend"
+        col.operator("object.add_property", text="Twist", icon="MOD_SCREW").type_ = "twist"
+        col.operator("object.add_property", text="Pull", icon="FULLSCREEN_ENTER").type_ = "pull"
+        col.operator("object.add_property", text="Push", icon="FULLSCREEN_EXIT").type_ = "push"
+        col.operator("object.add_property", text="Shift", icon="NEXT_KEYFRAME").type_ = "shift"
         col.separator()
-        prop = col.operator("object.add_property", text="Gameplay Critical", icon="FILE_TICK")
-        prop.type_ = "gameplay_critical"
-        prop = col.operator("object.add_property", text="Player Can Break", icon="FILE_TICK")
-        prop.type_ = "player_can_break"
+        col.operator("object.add_property", text="Gameplay Critical", icon="FILE_TICK").type_ = "gameplay_critical"
+        col.operator("object.add_property", text="Player Can Break", icon="FILE_TICK").type_ = "player_can_break"
 
         col = row.column()
         col.label("Constraints")
-        prop = col.operator("object.add_property", text="Limit", icon="CONSTRAINT")
-        prop.type_ = "limit"
-        prop = col.operator("object.add_property", text="Min Angle", icon="ZOOMOUT")
-        prop.type_ = "min_angle"
-        prop = col.operator("object.add_property", text="Max Angle", icon="ZOOMIN")
-        prop.type_ = "max_angle"
+        col.operator("object.add_property", text="Limit", icon="CONSTRAINT").type_ = "limit"
+        col.operator("object.add_property", text="Min Angle", icon="ZOOMOUT").type_ = "min_angle"
+        col.operator("object.add_property", text="Max Angle", icon="ZOOMIN").type_ = "max_angle"
         col.label(" ")
         col.label(" ")
         col.separator()
-        prop = col.operator("object.add_property", text="Damping", icon="FILE_TICK")
-        prop.type_ = "damping"
-        prop = col.operator("object.add_property", text="Collision", icon="FILE_TICK")
-        prop.type_ = "collision"
+        col.operator("object.add_property", text="Damping", icon="FILE_TICK").type_ = "damping"
+        col.operator("object.add_property", text="Collision", icon="FILE_TICK").type_ = "collision"
 
         col = row.column()
         col.label("Other")
-        prop = col.operator("object.add_deformable_properties", text="Deformable", icon="MOD_SIMPLEDEFORM")
+        col.operator("object.add_deformable_properties", text="Deformable", icon="MOD_SIMPLEDEFORM")
         col.label(" ")
         col.label(" ")
         col.label(" ")
         col.label(" ")
         col.separator()
-        prop = col.operator("object.add_property", text="Wheel", icon="FILE_TICK")
-        prop.type_ = "wheel"
+        col.operator("object.add_property", text="Wheel", icon="FILE_TICK").type_ = "wheel"
 
 
 class AddTemplateMenu(bpy.types.Menu):
@@ -1602,9 +1466,9 @@ class ConfigurationsMenu(bpy.types.Menu):
 
         layout.label("Configure")
         layout.operator("file.find_rc", text="Find RC", icon="SPACE2")
-        layout.operator("file.find_rc_for_texture_conversion", text="Find Texture RC", icon="SPACE2")
+        layout.operator("file.find_texture_rc", text="Find Texture RC", icon="SPACE2")
         layout.separator()
-        layout.operator("file.select_textures_directory", text="Select Textures Folder", icon="FILE_FOLDER")
+        layout.operator("file.select_texture_directory", text="Select Textures Folder", icon="FILE_FOLDER")
 
 
 class AddMaterialPhysicsMenu(bpy.types.Menu):
@@ -1658,14 +1522,12 @@ class CryBlendReducedMenu(bpy.types.Menu):
 def get_classes_to_register():
     classes = (
         FindRC,
-        FindRCForTextureConversion,
+        FindTextureRC,
         SelectTexturesDirectory,
         SaveCryBlendConfiguration,
 
         AddCryExportNode,
         SelectedToCryExportNodes,
-        SetMaterialNames,
-        RemoveCryBlendProperties,
 
         AddRootBone,
         ApplyTransforms,

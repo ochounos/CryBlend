@@ -119,7 +119,7 @@ def get_absolute_path_for_rc(file_path):
 
     file_path = get_absolute_path(file_path)
 
-    if not sys.platform == 'win32':
+    if sys.platform != 'win32':
         file_path = '%s%s' % (WINE_DEFAULT_DRIVE_LETTER, file_path)
 
     return file_path
@@ -169,12 +169,59 @@ def make_relative_path(filepath, start):
         raise exceptions.TextureAndBlendDiskMismatchException(start, filepath)
 
 
-def get_path_with_new_extension(image_path, extension):
-    return '%s.%s' % (os.path.splitext(image_path)[0], extension)
+def get_path_with_new_extension(path, extension):
+    return '%s.%s' % (os.path.splitext(path)[0], extension)
 
 
-def get_extension_from_path(image_path):
-    return '%s' % (os.path.splitext(image_path)[1])
+def strip_extension_from_path(path):
+    return os.path.splitext(path)[0]
+
+
+def get_extension_from_path(path):
+    return os.path.splitext(path)[1]
+
+
+def normalize_path(path):
+    path = path.replace("\\", "/")
+
+    multiple_paths = re.compile("/{2,}")
+    path = multiple_paths.sub("/", path)
+
+    if path[0] == "/":
+        path = path[1:]
+    
+    if path[-1] == "/":
+        path = path[:-1]
+
+    return path
+
+
+def build_path(*components):
+    path = "/".join(components)
+    path = path.replace("/.", ".") # accounts for extension
+    return normalize_path(path)
+
+
+def get_filename(path):
+    path_normalized = normalize_path(path)
+    components = path_normalized.split("/")
+    name = os.path.splitext(components[-1])[0]
+    return name
+
+
+def trim_path_to(path, trim_to):
+    path_normalized = normalize_path(path)
+    components = path_normalized.split("/")
+    for index, component in enumerate(components):
+        if component == trim_to:
+            cbPrint("FOUND AN INSTANCE")
+            break;
+    cbPrint(index)
+    components_trimmed = components[index:]
+    cbPrint(components_trimmed)
+    path_trimmed = build_path(*components_trimmed)
+    cbPrint(path_trimmed)
+    return path_trimmed
 
 
 #------------------------------------------------------------------------------
@@ -184,7 +231,7 @@ def get_extension_from_path(image_path):
 def clean_file():
     for texture in get_type('textures'):
         try:
-            texture.image.name = replace_invalid_rc_characters(texture.image.name)
+            texture.name = replace_invalid_rc_characters(texture.image.name)
         except AttributeError:
             pass
     for material in get_type('materials'):
@@ -459,26 +506,18 @@ def get_material_attribute(material, type_):
     return str(float)
 
 
-def is_cryblend_material(materialname):
-    if re.search('.+__[0-9]+__.*__phys[A-Za-z0-9]+', materialname):
+def get_material_props(materialname):
+    if has__material_physics(materialname):
+        groups = re.findall('(.*)__(phys[A-Za-z0-9]+)', materialname)
+        return replace_invalid_rc_characters(groups[0][0]), groups[0][1]
+    return replace_invalid_rc_characters(materialname), "physDefault"
+
+
+def has__material_physics(materialname):
+    if re.search('.*__phys[A-Za-z0-9]+', materialname):
         return True
     else:
         return False
-
-
-def extract_cryblend_properties(materialname):
-    '''Returns the CryBlend properties of a materialname as dict or
-    None if name is invalid.
-    '''
-    if is_cryblend_material(materialname):
-        groups = re.findall('(.+)__([0-9]+)__(.*)__(phys[A-Za-z0-9]+)', materialname)
-        properties = {}
-        properties['ExportNode'] = groups[0][0]
-        properties['Number'] = int(groups[0][1])
-        properties['Name'] = groups[0][2]
-        properties['Physics'] = groups[0][3]
-        return properties
-    return None
 
 
 #------------------------------------------------------------------------------
@@ -760,8 +799,8 @@ def generate_file_contents(type_):
 </CharacterDefinition>'''
 
 
-def generate_file(filepath, contents):
-    if not os.path.exists(filepath):
+def generate_file(filepath, contents, overwrite=False):
+    if not os.path.exists(filepath) or overwrite:
         file = open(filepath, 'w')
         file.write(contents)
         file.close()

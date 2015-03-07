@@ -42,6 +42,7 @@ from io_export_cryblend.outPipe import cbPrint
 from io_export_cryblend.utils import join
 
 from bpy_extras.io_utils import ExportHelper
+from collections import OrderedDict
 from datetime import datetime
 from mathutils import Matrix, Vector
 from time import clock
@@ -70,17 +71,7 @@ class CrytekDaeExporter:
     def __init__(self, config):
         self.__config = config
         self.__doc = Document()
-
-        # If you have all your textures in 'Texture', then path should be like:
-        # Textures/some/path
-        # so 'Textures' has to be removed from start path
-        normalized_path = os.path.normpath(config.textures_dir)
-        self.__textures_parent_directory = os.path.dirname(normalized_path)
-        cbPrint('Normalized textures directory: {!r}'.format(normalized_path),
-                'debug')
-        cbPrint('Textures parent directory: {!r}'.format(
-                                            self.__textures_parent_directory),
-                'debug')
+        self.__materials = self.__get_materials()
 
     def export(self):
         self.__prepare_for_export()
@@ -115,6 +106,41 @@ class CrytekDaeExporter:
 
         write_scripts(self.__config)
 
+    def __get_materials(self):
+        materials = OrderedDict()
+        material_counter = {}
+        for group in utils.get_export_nodes():
+            material_counter[group.name] = 0
+
+        for group in utils.get_export_nodes():
+            for object in group.objects:
+                for slot in object.material_slots:
+                    if slot.material is None:
+                        continue
+
+                    material_counter[group.name] += 1
+                    nodename = utils.get_node_name(group.name.replace("CryExportNode_", ""))
+                    name, physics = utils.get_material_props(slot.material.name)
+
+                    materialname = "{}__{:03d}__{}__{}".format(
+                            nodename,
+                            material_counter[group.name],
+                            name,
+                            physics)
+
+                    materials[materialname] = slot.material
+
+        return materials
+
+    def __get_materials_for_object(self, object_):
+        materials = OrderedDict()
+        for materialname, material in self.__materials.items():
+            for object_material in object_.data.materials:
+                if material.name == object_material.name:
+                    materials[materialname] = material
+
+        return materials
+
     def __prepare_for_export(self):
         utils.clean_file()
 
@@ -125,20 +151,19 @@ class CrytekDaeExporter:
             utils.fix_weights()
 
     def __create_file_header(self, parent_element):
-        # Attributes are x=y values inside a tag
         asset = self.__doc.createElement('asset')
         parent_element.appendChild(asset)
-        contrib = self.__doc.createElement('contributor')
-        asset.appendChild(contrib)
-        auth = self.__doc.createElement('author')
-        contrib.appendChild(auth)
-        authname = self.__doc.createTextNode('Blender User')
-        auth.appendChild(authname)
-        authtool = self.__doc.createElement('authoring_tool')
-        authtname = self.__doc.createTextNode(
+        contributor = self.__doc.createElement('contributor')
+        asset.appendChild(contributor)
+        author = self.__doc.createElement('author')
+        contributor.appendChild(author)
+        author_name = self.__doc.createTextNode('Blender User')
+        author.appendChild(author_name)
+        author_tool = self.__doc.createElement('authoring_tool')
+        author_name_text = self.__doc.createTextNode(
             'CryBlend v%s' % self.__config.cryblend_version)
-        authtool.appendChild(authtname)
-        contrib.appendChild(authtool)
+        author_tool.appendChild(author_name_text)
+        contributor.appendChild(author_tool)
         created = self.__doc.createElement('created')
         created_value = self.__doc.createTextNode(datetime.now().isoformat(' '))
         created.appendChild(created_value)
@@ -149,44 +174,36 @@ class CrytekDaeExporter:
         unit.setAttribute('name', 'meter')
         unit.setAttribute('meter', '1')
         asset.appendChild(unit)
-        uax = self.__doc.createElement('up_axis')
-        zup = self.__doc.createTextNode('Z_UP')
-        uax.appendChild(zup)
-        asset.appendChild(uax)
+        up_axis = self.__doc.createElement('up_axis')
+        z_up = self.__doc.createTextNode('Z_UP')
+        up_axis.appendChild(z_up)
+        asset.appendChild(up_axis)
 
     def __export_library_cameras(self, root_element):
-        libcam = self.__doc.createElement('library_cameras')
-        root_element.appendChild(libcam)
+        library_cameras = self.__doc.createElement('library_cameras')
+        root_element.appendChild(library_cameras)
 
     def __export_library_lights(self, root_element):
-        liblights = self.__doc.createElement('library_lights')
-        root_element.appendChild(liblights)
+        library_lights = self.__doc.createElement('library_lights')
+        root_element.appendChild(library_lights)
 
     def __export_library_images(self, parent_element):
         library_images = self.__doc.createElement('library_images')
         parent_element.appendChild(library_images)
 
-        images_to_convert = []
+        images = self.__get_image_textures_in_export_nodes()
 
-        for image in self.__get_image_textures_in_export_nodes():
-            image_element = self.__export_library_image(images_to_convert,
-                                                        image)
+        for image in images:
+            image_element = self.__export_library_image(image)
             library_images.appendChild(image_element)
 
-        if self.__config.convert_source_image_to_dds:
-            self.__convert_images_to_dds(images_to_convert)
+        if self.__config.do_textures:
+            self.__convert_images_to_dds(images)
 
-    def __export_library_image(self, images_to_convert, image):
-        if self.__config.convert_source_image_to_dds:
-            image_path = utils.get_path_with_new_extension(image.filepath,
-                'dds')
-            images_to_convert.append(image)
-
-        else:
-            image_path = image.filepath
-
-        image_path = utils.get_relative_path(image_path,
-                                             self.__textures_parent_directory)
+    def __export_library_image(self, image):
+        image_name = utils.get_filename(image.filepath)
+        dds_path = utils.build_path(self.__config.texture_dir, image_name, ".dds")
+        image_path = utils.trim_path_to(dds_path, "Objects")
 
         image_element = self.__doc.createElement('image')
         image_element.setAttribute('id', '%s' % image.name)
@@ -214,17 +231,17 @@ class CrytekDaeExporter:
         # return only unique images
         return list(set(images))
 
-    def __convert_images_to_dds(self, images_to_convert):
+    def __convert_images_to_dds(self, images):
         converter = RCInstance(self.__config)
-        converter.convert_tif(images_to_convert)
+        converter.convert_tif(images)
 
     def __export_library_effects(self, parent_element):
         current_element = self.__doc.createElement('library_effects')
         parent_element.appendChild(current_element)
-        for material in utils.get_type('materials'):
-            self.__export_library_effects_material(material, current_element)
+        for materialname, material in self.__materials.items():
+            self.__export_library_effects_material(materialname, material, current_element)
 
-    def __export_library_effects_material(self, material, current_element):
+    def __export_library_effects_material(self, materialname, material, current_element):
         images = [[], [], []]
         texture_slots = utils.get_texture_slots_for_material(material)
         for texture_slot in texture_slots:
@@ -242,7 +259,7 @@ class CrytekDaeExporter:
                 images[2] = [image.name, surface, sampler]
 
         effect_node = self.__doc.createElement('effect')
-        effect_node.setAttribute('id', '%s_fx' % material.name)
+        effect_node.setAttribute('id', '%s_fx' % materialname)
         profile_node = self.__doc.createElement('profile_COMMON')
         for image in images:
             if len(image) != 0:
@@ -360,11 +377,11 @@ class CrytekDaeExporter:
         library_materials = self.__doc.createElement('library_materials')
         materials = utils.get_type('materials')
 
-        for material in materials:
+        for materialname, material in self.__materials.items():
             material_element = self.__doc.createElement('material')
-            material_element.setAttribute('id', '%s' % (material.name))
+            material_element.setAttribute('id', '%s' % materialname)
             instance_effect = self.__doc.createElement('instance_effect')
-            instance_effect.setAttribute('url', '#%s_fx' % (material.name))
+            instance_effect.setAttribute('url', '#%s_fx' % materialname)
             material_element.appendChild(instance_effect)
             library_materials.appendChild(material_element)
 
@@ -513,54 +530,54 @@ class CrytekDaeExporter:
         root.appendChild(vertices)
 
     def __write_polylist(self, object_, mesh, root):
-        materials = mesh.materials[:]
-        if materials:
-            for matindex, material in enumerate(materials):
-                vert_data = ''
-                verts_per_poly = ''
-                poly_count = normal = texcoord = 0
+        matindex = 0
+        for materialname, material in self.__get_materials_for_object(object_).items():
+            vert_data = ''
+            verts_per_poly = ''
+            poly_count = normal = texcoord = 0
 
-                for face in mesh.tessfaces:
-                    if face.material_index == matindex:
-                        verts_per_poly = join(verts_per_poly, len(face.vertices), ' ')
-                        poly_count += 1
-                        for vert in face.vertices:
-                            data = self.__write_vertex_data(mesh, face, vert, normal, texcoord)
-                            vert_data = join(vert_data, data)
-                            texcoord += 1
-                    else:
-                        texcoord += len(face.vertices)
+            for face in mesh.tessfaces:
+                if face.material_index == matindex:
+                    verts_per_poly = join(verts_per_poly, len(face.vertices), ' ')
+                    poly_count += 1
+                    for vert in face.vertices:
+                        data = self.__write_vertex_data(mesh, face, vert, normal, texcoord)
+                        vert_data = join(vert_data, data)
+                        texcoord += 1
+                else:
+                    texcoord += len(face.vertices)
 
-                    if face.use_smooth:
-                        normal += len(face.vertices)
-                    else:
-                        normal += 1
+                if face.use_smooth:
+                    normal += len(face.vertices)
+                else:
+                    normal += 1
 
-                polylist = self.__doc.createElement('polylist')
-                polylist.setAttribute('material', material.name)
-                polylist.setAttribute('count', str(poly_count))
+            polylist = self.__doc.createElement('polylist')
+            polylist.setAttribute('material', materialname)
+            polylist.setAttribute('count', str(poly_count))
 
-                inputs = []
-                inputs.append(utils.write_input(object_.name, 0, 'vertices', 'VERTEX'))
-                inputs.append(utils.write_input(object_.name, 1, 'normals', 'NORMAL'))
-                inputs.append(utils.write_input(object_.name, 2, 'UVMap-0', 'TEXCOORD'))
-                if mesh.vertex_colors:
-                    inputs.append(utils.write_input(object_.name, 3, 'colors', 'COLOR'))
+            inputs = []
+            inputs.append(utils.write_input(object_.name, 0, 'vertices', 'VERTEX'))
+            inputs.append(utils.write_input(object_.name, 1, 'normals', 'NORMAL'))
+            inputs.append(utils.write_input(object_.name, 2, 'UVMap-0', 'TEXCOORD'))
+            if mesh.vertex_colors:
+                inputs.append(utils.write_input(object_.name, 3, 'colors', 'COLOR'))
 
-                for input in inputs:
-                    polylist.appendChild(input)
+            for input in inputs:
+                polylist.appendChild(input)
 
-                vcount = self.__doc.createElement('vcount')
-                vcount_text = self.__doc.createTextNode(verts_per_poly)
-                vcount.appendChild(vcount_text)
+            vcount = self.__doc.createElement('vcount')
+            vcount_text = self.__doc.createTextNode(verts_per_poly)
+            vcount.appendChild(vcount_text)
 
-                p = self.__doc.createElement('p')
-                p_text = self.__doc.createTextNode(vert_data)
-                p.appendChild(p_text)
+            p = self.__doc.createElement('p')
+            p_text = self.__doc.createTextNode(vert_data)
+            p.appendChild(p_text)
 
-                polylist.appendChild(vcount)
-                polylist.appendChild(p)
-                root.appendChild(polylist)
+            polylist.appendChild(vcount)
+            polylist.appendChild(p)
+            root.appendChild(polylist)
+            matindex += 1
 
     def __write_vertex_data(self, mesh, face, vert, normal, texcoord):
         if face.use_smooth:
@@ -1023,12 +1040,12 @@ class CrytekDaeExporter:
         bind_material = self.__doc.createElement('bind_material')
         technique_common = self.__doc.createElement('technique_common')
 
-        for material in object_.material_slots:
+        for materialname, material in self.__get_materials_for_object(object_).items():
             instance_material = self.__doc.createElement(
                                 'instance_material')
-            instance_material.setAttribute('symbol', material.name)
+            instance_material.setAttribute('symbol', materialname)
             instance_material.setAttribute('target', '#{!s}'.format(
-                                material.name))
+                                materialname))
 
             bind_vertex_input = self.__doc.createElement(
                                 'bind_vertex_input')
@@ -1055,7 +1072,7 @@ class CrytekDaeExporter:
             if node_type in allowed:
                 prop = self.__doc.createTextNode('fileType={}'.format(node_type))
                 properties.appendChild(prop)
-            if self.__config.donot_merge:
+            if self.__config.do_not_merge:
                 prop = self.__doc.createTextNode('DoNotMerge')
                 properties.appendChild(prop)
         else:

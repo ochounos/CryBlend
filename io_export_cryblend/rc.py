@@ -34,6 +34,9 @@ class RCInstance:
         self.__config = config
 
     def convert_tif(self, source):
+        if not self.__config.do_textures:
+            return
+
         converter = _TIFConverter(self.__config, source)
         conversion_thread = threading.Thread(target=converter)
         conversion_thread.start()
@@ -52,7 +55,7 @@ class _DAEConverter:
     def __call__(self):
         filepath = bpy.path.ensure_ext(self.__config.filepath, '.dae')
         xml_string = self.__doc.toprettyxml(indent="    ")
-        utils.generate_file(filepath, xml_string)
+        utils.generate_file(filepath, xml_string, overwrite=True)
 
         dae_path = utils.get_absolute_path_for_rc(filepath)
 
@@ -66,13 +69,6 @@ class _DAEConverter:
             if rc_process is not None:
                 rc_process.wait()
                 self.__recompile(dae_path)
-
-            if self.__config.do_materials:
-                mtl_fix_thread = threading.Thread(
-                    target=self.__fix_normalmap_in_mtls,
-                    args=(rc_process, filepath)
-                )
-                mtl_fix_thread.start()
 
         if self.__config.make_layer:
             lyr_contents = self.__make_layer()
@@ -97,48 +93,6 @@ class _DAEConverter:
                 args = [self.__config.rc_path, '/refresh', '/vertexindexformat=u16', out_file]
                 rc_second_pass = subprocess.Popen(args)
 
-    def __fix_normalmap_in_mtls(self, rc_process, dae_file):
-        SUCCESS = 0
-
-        return_code = rc_process.wait()
-
-        if return_code == SUCCESS:
-            export_directory = os.path.dirname(dae_file)
-
-            mtl_files = self.__get_mtl_files_in_directory(export_directory)
-
-            for mtl_file_name in mtl_files:
-                self.__fix_normalmap_in_mtl(mtl_file_name)
-
-    def __get_mtl_files_in_directory(self, directory):
-        MTL_MATCH_STRING = '*.{!s}'.format('mtl')
-
-        mtl_files = []
-        for file in os.listdir(directory):
-            if fnmatch.fnmatch(file, MTL_MATCH_STRING):
-                filepath = '{!s}/{!s}'.format(directory, file)
-                mtl_files.append(filepath)
-
-        return mtl_files
-
-    def __fix_normalmap_in_mtl(self, mtl_file_name):
-        TMP_FILE_SUFFIX = '.tmp'
-        BAD_TAG_NAME = '<Texture Map=\'NormalMap\' File=\''
-        GOOD_TAG_NAME = '<Texture Map=\'Bumpmap\' File=\''
-
-        tmp_mtl_file_name = mtl_file_name + TMP_FILE_SUFFIX
-        mtl_old_file = open(mtl_file_name, 'r')
-        mtl_new_file = open(tmp_mtl_file_name, 'w')
-
-        for line in mtl_old_file:
-            line = line.replace(BAD_TAG_NAME, GOOD_TAG_NAME)
-            mtl_new_file.write(line)
-
-        mtl_old_file.close()
-        mtl_new_file.close()
-
-        os.remove(mtl_file_name)
-        os.rename(tmp_mtl_file_name, mtl_file_name)
 
     def __make_layer(self):
         layer_name = "ExportedLayer"
@@ -234,117 +188,50 @@ class _DAEConverter:
 class _TIFConverter:
     def __init__(self, config, source):
         self.__config = config
-        self.__images_to_convert = source
-        self.__tmp_images = {}
-        self.__tmp_dir = tempfile.mkdtemp('CryBlend')
+        self.__images = source
+        self.__tiffs = []
 
     def __call__(self):
-        for image in self.__images_to_convert:
-            rc_params = self.__get_rc_params(image.filepath)
-            tiff_image_path = self.__get_temp_tiff_image_path(image)
+        texture_dir = self.__config.texture_dir
+        if self.__images:
+            if not os.path.exists(texture_dir):
+                os.makedirs(texture_dir)
 
-            tiff_image_for_rc = utils.get_absolute_path_for_rc(tiff_image_path)
-            cbPrint(tiff_image_for_rc)
+        for image in self.__images:
+            tiff_name = utils.get_filename(image.filepath)
+            tiff_path = utils.build_path(texture_dir, tiff_name, ".tif")
+            if tiff_path != image.filepath:
+                self.__tiffs.append(tiff_path)
+            self.__save_as_tiff(image, tiff_path)
 
-            try:
-                self.__create_normal_texture()
-            except:
-                cbPrint('Failed to invert green channel')
-
-            rc_process = run_rc(self.__config.rc_for_textures_conversion_path,
-                                      tiff_image_for_rc,
-                                      rc_params)
-
-            # re-save the original image after running the RC to
-            # prevent the original one from getting lost
-            try:
-                if ('_ddn' in image.name):
-                    image.save()
-            except:
-                cbPrint('Failed to invert green channel')
-
+            rc_process = run_rc(self.__config.texture_rc_path,
+                                      tiff_path,
+                                      self.__get_rc_params())
             rc_process.wait()
 
-        if self.__config.rc_for_textures_conversion_path:
-            self.__save_tiffs()
+        if not self.__config.save_tiffs:
+            self.__remove_tiffs()
 
-        self.__remove_tmp_files()
+    def __get_rc_params(self):
+        return ['/verbose', '/threads=cores', '/userdialog=1', '/refresh', '/quiet']
 
-    def __create_normal_texture(self):
-        if ('_ddn' in image.name):
-            # make a copy to prevent editing the original image
-            temp_normal_image = image.copy()
-            self.__invert_green_channel(temp_normal_image)
-            # save to file and delete the temporary image
-            new_normal_image_path = '%s_cb_normal.%s' % (os.path.splitext(temp_normal_image.filepath_raw)[0], os.path.splitext(temp_normal_image.filepath_raw)[1])
-            temp_normal_image.save_render(filepath=new_normal_image_path)
-            bpy.data.images.remove(temp_normal_image)
-
-    def __get_rc_params(self, destination_path):
-        rc_params = ['/verbose', '/threads=cores', '/userdialog=1', '/refresh']
-
-        image_directory = os.path.dirname(utils.get_absolute_path_for_rc(
-                destination_path))
-
-        rc_params.append('/targetroot={!s}'.format(image_directory))
-
-        return rc_params
-
-    def __invert_green_channel(self, image):
-        override = {'edit_image': bpy.data.images[image.name]}
-        bpy.ops.image.invert(override, invert_g=True)
-        image.update()
-
-    def __get_temp_tiff_image_path(self, image):
-        # check if the image already is a .tif
-        image_extension = utils.get_extension_from_path(image.filepath)
-        cbPrint(image_extension)
-
-        if '.tif' == image_extension:
-            cbPrint('Image {!r} is already a tif, not converting'.format(image.name), 'debug')
-            return image.filepath
-
-        tiff_image_path = utils.get_path_with_new_extension(image.filepath,
-                                                            'tif')
-        tiff_image_absolute_path = utils.get_absolute_path(tiff_image_path)
-        tiff_file_name = os.path.basename(tiff_image_path)
-
-        tmp_file_path = os.path.join(self.__tmp_dir, tiff_file_name)
-
-        if tiff_image_path != image.filepath:
-            self.__save_as_tiff(image, tmp_file_path)
-            self.__tmp_images[tmp_file_path] = (tiff_image_absolute_path)
-
-        return tmp_file_path
-
-    def __save_as_tiff(self, image, tiff_file_path):
-        originalPath = image.filepath
+    def __save_as_tiff(self, image, tiff_path):
+        original_path = image.filepath
 
         try:
-            image.filepath_raw = tiff_file_path
+            image.filepath_raw = tiff_path
             image.file_format = 'TIFF'
             image.save()
 
         finally:
-            image.filepath = originalPath
+            image.filepath = original_path
 
-    def __save_tiffs(self):
-        for tmp_image, dest_image in self.__tmp_images.items():
-            cbPrint('Moving tmp image: {!r} to {!r}'.format(tmp_image,
-                                                            dest_image),
-                    'debug')
-            shutil.move(tmp_image, dest_image)
-
-    def __remove_tmp_files(self):
-        for tmp_image in self.__tmp_images:
+    def __remove_tiffs(self):
+        for tiff in self.__tiffs:
             try:
-                cbPrint('Removing tmp image: {!r}'.format(tmp_image), 'debug')
-                os.remove(tmp_image)
+                os.remove(tiff)
             except FileNotFoundError:
                 pass
-
-        os.removedirs(self.__tmp_dir)
-        self.__tmp_images.clear()
 
 
 def run_rc(rc_path, files_to_process, params=None):
