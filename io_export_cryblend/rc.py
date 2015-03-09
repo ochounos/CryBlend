@@ -236,6 +236,8 @@ class _TIFConverter:
             '/quiet']
         if (self.__config.suppress_printouts):
             params.append('/quiet')
+ 
+        return params
 
     def __save_as_tiff(self, image, tiff_path):
         original_path = image.filepath
@@ -264,8 +266,6 @@ def run_rc(rc_path, files_to_process, params=None):
         process_params.extend(files_to_process)
     else:
         process_params.append(files_to_process)
-
-    process_params.extend(params)
 
     cbPrint(params)
     cbPrint(files_to_process)
