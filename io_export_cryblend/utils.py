@@ -507,13 +507,13 @@ def get_material_attribute(material, type_):
 
 
 def get_material_props(materialname):
-    if has__material_physics(materialname):
+    if has_material_physics(materialname):
         groups = re.findall('(.*)__(phys[A-Za-z0-9]+)', materialname)
         return replace_invalid_rc_characters(groups[0][0]), groups[0][1]
     return replace_invalid_rc_characters(materialname), "physDefault"
 
 
-def has__material_physics(materialname):
+def has_material_physics(materialname):
     if re.search('.*__phys[A-Za-z0-9]+', materialname):
         return True
     else:

@@ -50,8 +50,9 @@ from xml.dom.minidom import Document, Element, parse, parseString
 import bmesh
 import copy
 import os
-import threading
+import re
 import subprocess
+import threading
 import time
 import xml.dom.minidom
 
@@ -122,13 +123,20 @@ class CrytekDaeExporter:
                     nodename = utils.get_node_name(group.name.replace("CryExportNode_", ""))
                     name, physics = utils.get_material_props(slot.material.name)
 
-                    materialname = "{}__{:03d}__{}__{}".format(
-                            nodename,
-                            material_counter[group.name],
-                            name,
-                            physics)
+                    already_exists = False
+                    for materialname, material in materials.items():
+                        pattern = '{}__[0-9]+__{}__phys[A-Za-z0-9]+'.format(nodename, name)
+                        if re.search(pattern, materialname):
+                            already_exists = True
+                            break
+                    if not already_exists:
+                        materialname = "{}__{:03d}__{}__{}".format(
+                                nodename,
+                                material_counter[group.name],
+                                name,
+                                physics)
 
-                    materials[materialname] = slot.material
+                        materials[materialname] = slot.material
 
         return materials
 
@@ -142,6 +150,7 @@ class CrytekDaeExporter:
         return materials
 
     def __prepare_for_export(self):
+        os.system("cls")
         utils.clean_file()
 
         if self.__config.apply_modifiers:
@@ -552,6 +561,10 @@ class CrytekDaeExporter:
                 else:
                     normal += 1
 
+            matindex += 1
+            if poly_count == 0:
+                continue
+
             polylist = self.__doc.createElement('polylist')
             polylist.setAttribute('material', materialname)
             polylist.setAttribute('count', str(poly_count))
@@ -577,7 +590,6 @@ class CrytekDaeExporter:
             polylist.appendChild(vcount)
             polylist.appendChild(p)
             root.appendChild(polylist)
-            matindex += 1
 
     def __write_vertex_data(self, mesh, face, vert, normal, texcoord):
         if face.use_smooth:
@@ -679,10 +691,10 @@ class CrytekDaeExporter:
         vertex_weights.setAttribute('count', str(len(object_.data.vertices)))
 
         id_ = '{!s}_{!s}'.format(armature.name, object_.name)
-        input = utils.write_input(id_, 0, 'joints', 'JOINT')
-        vertex_weights.appendChild(input)
-        input = utils.write_input(id_, 1, 'weights', 'WEIGHT')
-        vertex_weights.appendChild(input)
+        input_ = utils.write_input(id_, 0, 'joints', 'JOINT')
+        vertex_weights.appendChild(input_)
+        input_ = utils.write_input(id_, 1, 'weights', 'WEIGHT')
+        vertex_weights.appendChild(input_)
 
         vcount = self.__doc.createElement('vcount')
         vcount_text = self.__doc.createTextNode(vertex_groups_lengths)

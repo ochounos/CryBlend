@@ -60,7 +60,7 @@ class _DAEConverter:
         dae_path = utils.get_absolute_path_for_rc(filepath)
 
         if not self.__config.disable_rc:
-            rc_params = ['/verbose', '/threads=processors', '/refresh']
+            rc_params = ['/verbose', '/threads=processors', '/refresh', '/logfiles=1']
             if self.__config.do_materials:
                 rc_params.append('/createmtl=1')
 
@@ -91,8 +91,9 @@ class _DAEConverter:
                 out_file = '{0}{1}'.format(output_path,
                                             group.name)
                 args = [self.__config.rc_path, '/refresh', '/vertexindexformat=u16', out_file]
+                if (self.__config.suppress_printouts):
+                    args.append('/quiet')
                 rc_second_pass = subprocess.Popen(args)
-
 
     def __make_layer(self):
         layer_name = "ExportedLayer"
@@ -213,7 +214,9 @@ class _TIFConverter:
             self.__remove_tiffs()
 
     def __get_rc_params(self):
-        return ['/verbose', '/threads=cores', '/userdialog=1', '/refresh', '/quiet']
+        params = ['/verbose', '/threads=cores', '/userdialog=1', '/refresh', '/quiet']
+        if (self.__config.suppress_printouts):
+            params.append('/quiet')
 
     def __save_as_tiff(self, image, tiff_path):
         original_path = image.filepath

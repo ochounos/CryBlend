@@ -541,7 +541,7 @@ class AddMaterialPhysics(bpy.types.Operator):
     type_ = StringProperty()
 
     def __init__(self):
-        self.physics = {
+        self.__physics = {
             "physDefault":      add.add_phys_default,
             "physProxyNoDraw":  add.add_phys_proxy_no_draw,
             "physNone":         add.add_phys_none,
@@ -751,8 +751,8 @@ class AddRootBone(bpy.types.Operator):
                 old_mode = bpy.context.object.mode
                 bpy.ops.object.mode_set(mode="EDIT")
                 edit_bones = active.data.edit_bones
-                bpy.ops.armature.bone_primitive_add(name="root")
-                root_bone = edit_bones["root"]
+                bpy.ops.armature.bone_primitive_add(name="root_identity")
+                root_bone = edit_bones["root_identity"]
                 bpy.ops.armature.select_all(action="DESELECT")
                 for edit_bone in edit_bones:
                     if edit_bone.parent is None:
@@ -946,6 +946,11 @@ class Export(bpy.types.Operator, ExportHelper):
             description="Generally a good idea.",
             default=True,
             )
+    suppress_printouts = BoolProperty(
+        name="Suppress RC Printouts",
+        description="Generally a good idea.",
+        default=True,
+        )
     do_materials = BoolProperty(
             name="Do Materials",
             description="Create MTL files for materials.",
@@ -1013,6 +1018,7 @@ class Export(bpy.types.Operator, ExportHelper):
                 'filepath',
                 'apply_modifiers',
                 'do_not_merge',
+                'suppress_printouts',
                 'do_materials',
                 'do_textures',
                 'make_chrparams',
@@ -1032,8 +1038,8 @@ class Export(bpy.types.Operator, ExportHelper):
 
             setattr(self, 'cryblend_version', VERSION)
             setattr(self, 'rc_path', Configuration.rc_path)
-            setattr(self, 'texture_rc_path',
-                    Configuration.texture_rc_path)
+            setattr(self, 'texture_rc_path', Configuration.texture_rc_path)
+            setattr(self, 'texture_dir', utils.build_path(os.path.dirname(self.filepath), "textures"))
             setattr(self, 'texture_dir', utils.build_path(os.path.dirname(self.filepath), "textures"))
 
     def execute(self, context):
@@ -1063,6 +1069,7 @@ class Export(bpy.types.Operator, ExportHelper):
         box.label("General", icon="WORLD")
         box.prop(self, "apply_modifiers")
         box.prop(self, "do_not_merge")
+        box.prop(self, "suppress_printouts")
 
         box = col.box()
         box.label("Image and Material", icon="TEXTURE")
