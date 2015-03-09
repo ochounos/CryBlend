@@ -30,6 +30,7 @@ import tempfile
 
 
 class RCInstance:
+
     def __init__(self, config):
         self.__config = config
 
@@ -48,6 +49,7 @@ class RCInstance:
 
 
 class _DAEConverter:
+
     def __init__(self, config, source):
         self.__config = config
         self.__doc = source
@@ -60,7 +62,11 @@ class _DAEConverter:
         dae_path = utils.get_absolute_path_for_rc(filepath)
 
         if not self.__config.disable_rc:
-            rc_params = ['/verbose', '/threads=processors', '/refresh', '/logfiles=1']
+            rc_params = [
+                '/verbose',
+                '/threads=processors',
+                '/refresh',
+                '/logfiles=1']
             if self.__config.do_materials:
                 rc_params.append('/createmtl=1')
 
@@ -89,8 +95,12 @@ class _DAEConverter:
             allowed = ['cgf', 'cga', 'chr', 'skin']
             if node_type in allowed:
                 out_file = '{0}{1}'.format(output_path,
-                                            group.name)
-                args = [self.__config.rc_path, '/refresh', '/vertexindexformat=u16', out_file]
+                                           group.name)
+                args = [
+                    self.__config.rc_path,
+                    '/refresh',
+                    '/vertexindexformat=u16',
+                    out_file]
                 if (self.__config.suppress_printouts):
                     args.append('/quiet')
                 rc_second_pass = subprocess.Popen(args)
@@ -126,7 +136,9 @@ class _DAEConverter:
                 object_node.setAttribute('name', group.name[14:])
                 object_node.setAttribute('Type', 'Entity')
                 object_node.setAttribute('Id', utils.get_guid())
-                object_node.setAttribute('LayerGUID', layer.getAttribute('GUID'))
+                object_node.setAttribute(
+                    'LayerGUID',
+                    layer.getAttribute('GUID'))
                 object_node.setAttribute('Layer', layer_name)
                 cbPrint(origin)
                 positionString = "%s, %s, %s" % origin[:]
@@ -186,7 +198,9 @@ class _DAEConverter:
 
         return layer_doc.toprettyxml(indent="  ")
 
+
 class _TIFConverter:
+
     def __init__(self, config, source):
         self.__config = config
         self.__images = source
@@ -206,15 +220,20 @@ class _TIFConverter:
             self.__save_as_tiff(image, tiff_path)
 
             rc_process = run_rc(self.__config.texture_rc_path,
-                                      tiff_path,
-                                      self.__get_rc_params())
+                                tiff_path,
+                                self.__get_rc_params())
             rc_process.wait()
 
         if not self.__config.save_tiffs:
             self.__remove_tiffs()
 
     def __get_rc_params(self):
-        params = ['/verbose', '/threads=cores', '/userdialog=1', '/refresh', '/quiet']
+        params = [
+            '/verbose',
+            '/threads=cores',
+            '/userdialog=1',
+            '/refresh',
+            '/quiet']
         if (self.__config.suppress_printouts):
             params.append('/quiet')
 

@@ -25,7 +25,7 @@ class __Configuration:
     __CONFIG_FILENAME = 'cryblend.cfg'
     __CONFIG_FILEPATH = os.path.join(__CONFIG_PATH, __CONFIG_FILENAME)
     __DEFAULT_CONFIGURATION = {'RC_PATH': r'',
-                              'TEXTURE_RC_PATH': r''}
+                               'TEXTURE_RC_PATH': r''}
 
     def __init__(self):
         self.__CONFIG = self.__load({})

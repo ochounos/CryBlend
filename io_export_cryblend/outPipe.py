@@ -17,6 +17,7 @@ from logging import basicConfig, info, debug, warning, DEBUG
 
 
 class OutPipe():
+
     def __init__(self):
         pass
 
@@ -35,7 +36,7 @@ class OutPipe():
 
         else:
             raise exceptions.CryBlendException('No such message type {!r}'.
-                                    format(message_type))
+                                               format(message_type))
 
 
 op = OutPipe()
@@ -43,4 +44,3 @@ op = OutPipe()
 
 def cbPrint(msg, message_type='info'):
     op.pump(msg, message_type)
-

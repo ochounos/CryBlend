@@ -13,6 +13,7 @@
 
 
 class CryBlendException(RuntimeError):
+
     def __init__(self, message):
         self._message = message
 
@@ -24,6 +25,7 @@ class CryBlendException(RuntimeError):
 
 
 class BlendNotSavedException(CryBlendException):
+
     def __init__(self):
         message = 'Blend file has to be saved before exporting.'
 
@@ -31,6 +33,7 @@ class BlendNotSavedException(CryBlendException):
 
 
 class TextureAndBlendDiskMismatchException(CryBlendException):
+
     def __init__(self, blend_path, texture_path):
         message = """
 Blend file and all textures have to be placed on the same disk.
@@ -42,6 +45,7 @@ Texture file: {!r}""".format(blend_path, texture_path)
 
 
 class NoRcSelectedException(CryBlendException):
+
     def __init__(self):
         message = """
 Please find Resource Compiler first.

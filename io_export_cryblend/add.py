@@ -173,57 +173,77 @@ def add_collision_property(self, context):
 
 
 # deformable
-def add_deformable_property(self, context, mass, stiffness, hardness,
-        max_stretch, max_impulse, skin_dist, thickness, explosion_scale, is_primitive):
-        ob = bpy.context.active_object
-        ob['mass'] = 'mass=%s' % mass
-        ob['stfns'] = 'stiffness=%s' % stiffness
-        ob['stfns'] = 'hardness=%s' % hardness
-        ob['mxstr'] = 'max_stretch=%s' % max_stretch
-        ob['mxstr'] = 'max_impulse=%s' % max_impulse
-        ob['skdist'] = 'skin_dist=%s' % skin_dist
-        ob['thkns'] = 'thickness=%s' % thickness
-        ob['thkns'] = 'explosion_scale=%s' % explosion_scale
-        if (is_primitive == 'Yes'):
-            ob['notap'] = 'notaprim=0'
-        else:
-            ob['notap'] = 'notaprim=1'
-        return{'FINISHED'}
+def add_deformable_property(
+        self,
+        context,
+        mass,
+        stiffness,
+        hardness,
+        max_stretch,
+        max_impulse,
+        skin_dist,
+        thickness,
+        explosion_scale,
+        is_primitive):
+    ob = bpy.context.active_object
+    ob['mass'] = 'mass=%s' % mass
+    ob['stfns'] = 'stiffness=%s' % stiffness
+    ob['stfns'] = 'hardness=%s' % hardness
+    ob['mxstr'] = 'max_stretch=%s' % max_stretch
+    ob['mxstr'] = 'max_impulse=%s' % max_impulse
+    ob['skdist'] = 'skin_dist=%s' % skin_dist
+    ob['thkns'] = 'thickness=%s' % thickness
+    ob['thkns'] = 'explosion_scale=%s' % explosion_scale
+    if (is_primitive == 'Yes'):
+        ob['notap'] = 'notaprim=0'
+    else:
+        ob['notap'] = 'notaprim=1'
+    return{'FINISHED'}
 
 
 # material physics
 def add_phys_default(self, context):
     me = bpy.context.active_object
     if me.active_material:
-        me.active_material.name = replacePhysMaterial(me.active_material.name, '__physDefault')
+        me.active_material.name = replacePhysMaterial(
+            me.active_material.name,
+            '__physDefault')
     return{'FINISHED'}
 
 
 def add_phys_none(self, context):
     me = bpy.context.active_object
     if me.active_material:
-        me.active_material.name = replacePhysMaterial(me.active_material.name, '__physNone')
+        me.active_material.name = replacePhysMaterial(
+            me.active_material.name,
+            '__physNone')
     return{'FINISHED'}
 
 
 def add_phys_proxy_no_draw(self, context):
     me = bpy.context.active_object
     if me.active_material:
-        me.active_material.name = replacePhysMaterial(me.active_material.name, '__physProxyNoDraw')
+        me.active_material.name = replacePhysMaterial(
+            me.active_material.name,
+            '__physProxyNoDraw')
     return{'FINISHED'}
 
 
 def add_phys_obstruct(self, context):
     me = bpy.context.active_object
     if me.active_material:
-        me.active_material.name = replacePhysMaterial(me.active_material.name, '__physObstruct')
+        me.active_material.name = replacePhysMaterial(
+            me.active_material.name,
+            '__physObstruct')
     return{'FINISHED'}
 
 
 def add_phys_no_collide(self, context):
     me = bpy.context.active_object
     if me.active_material:
-        me.active_material.name = replacePhysMaterial(me.active_material.name, '__physNoCollide')
+        me.active_material.name = replacePhysMaterial(
+            me.active_material.name,
+            '__physNoCollide')
     return{'FINISHED'}
 
 

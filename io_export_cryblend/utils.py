@@ -75,6 +75,7 @@ def matrix_to_array(matrix):
 
     return array
 
+
 def write_matrix(matrix, node):
     doc = Document()
     for row in matrix:
@@ -189,7 +190,7 @@ def normalize_path(path):
 
     if path[0] == "/":
         path = path[1:]
-    
+
     if path[-1] == "/":
         path = path[:-1]
 
@@ -198,7 +199,7 @@ def normalize_path(path):
 
 def build_path(*components):
     path = "/".join(components)
-    path = path.replace("/.", ".") # accounts for extension
+    path = path.replace("/.", ".")  # accounts for extension
     return normalize_path(path)
 
 
@@ -215,7 +216,7 @@ def trim_path_to(path, trim_to):
     for index, component in enumerate(components):
         if component == trim_to:
             cbPrint("FOUND AN INSTANCE")
-            break;
+            break
     cbPrint(index)
     components_trimmed = components[index:]
     cbPrint(components_trimmed)
@@ -260,21 +261,21 @@ def replace_invalid_rc_characters(string):
     string = '_'.join(string.split())
 
     character_map = {
-        '_':  '.',
-        'a':  'àáâå',
-        'c':  'ç',
-        'e':  'èéêë',
-        'i':  'ìíîï',
-        'l':  'ł',
-        'n':  'ñ',
-        'o':  'òóô',
-        'u':  'ùúû',
-        'y':  'ÿ',
+        '_': '.',
+        'a': 'àáâå',
+        'c': 'ç',
+        'e': 'èéêë',
+        'i': 'ìíîï',
+        'l': 'ł',
+        'n': 'ñ',
+        'o': 'òóô',
+        'u': 'ùúû',
+        'y': 'ÿ',
         'ss': 'ß',
         'ae': 'äæ',
         'oe': 'ö',
         'ue': 'ü'
-    } # Expand with more individual replacement rules.
+    }  # Expand with more individual replacement rules.
 
     # Individual replacement.
     for good, bad in character_map.items():
@@ -292,9 +293,12 @@ def fix_weights():
     for object_ in get_type('skins'):
         override = get_3d_context(object_)
         try:
-            bpy.ops.object.vertex_group_normalize_all(override, lock_active=False)
+            bpy.ops.object.vertex_group_normalize_all(
+                override,
+                lock_active=False)
         except:
-            raise exceptions.CryBlendException('Please fix weightless vertices first.')
+            raise exceptions.CryBlendException(
+                'Please fix weightless vertices first.')
     cbPrint('Weights Corrected.')
 
 
@@ -335,6 +339,7 @@ def get_type(type_):
     }
     return list(set(dispatch[type_]()))
 
+
 def __get_nodes():
     items = []
     for group in get_export_nodes():
@@ -342,14 +347,16 @@ def __get_nodes():
 
     return items
 
+
 def __get_geometry():
     items = []
     allowed = {'MESH'}
     for object_ in get_type('nodes'):
         if object_.type in allowed and not is_fakebone(object_):
-           items.append(object_)
+            items.append(object_)
 
     return items
+
 
 def __get_controllers():
     items = []
@@ -361,6 +368,7 @@ def __get_controllers():
                     items.append(object_.parent)
 
     return items
+
 
 def __get_skins():
     items = []
@@ -375,6 +383,7 @@ def __get_skins():
 
     return items
 
+
 def __get_fakebones():
     items = []
     allowed = {'MESH'}
@@ -383,6 +392,7 @@ def __get_fakebones():
             items.append(object_)
 
     return items
+
 
 def __get_bone_geometry():
     items = []
@@ -394,6 +404,7 @@ def __get_bone_geometry():
 
     return items
 
+
 def __get_materials():
     items = []
     allowed = {'MESH'}
@@ -404,12 +415,14 @@ def __get_materials():
 
     return items
 
+
 def __get_texture_slots():
     items = []
     for material in get_type('materials'):
         items.extend(get_texture_slots_for_material(material))
 
     return items
+
 
 def __get_textures():
     items = []
@@ -462,13 +475,15 @@ def raise_exception_if_textures_have_same_type(texture_types):
     ERROR_TEMPLATE = 'There is more than one texture of type {!r}.'
     error_messages = []
 
-    for type_name, type_count in  texture_types.items():
+    for type_name, type_count in texture_types.items():
         if type_count > 1:
             error_messages.append(ERROR_TEMPLATE.format(type_name.lower()))
 
     if error_messages:
-        raise exceptions.CryBlendException('\n'.join(error_messages) + '\n'
-                                    + 'Please correct that and try again.')
+        raise exceptions.CryBlendException(
+            '\n'.join(error_messages) +
+            '\n' +
+            'Please correct that and try again.')
 
 
 def is_valid_image(image):
@@ -544,7 +559,7 @@ def are_duplicate_nodes():
 
 def get_node_name(groupname):
     node_type = get_node_type(groupname)
-    return groupname[:-(len(node_type)+1)]
+    return groupname[:-(len(node_type) + 1)]
 
 
 def get_node_type(groupname):
@@ -649,7 +664,7 @@ def keyframe_fakebones(armature):
             fakebone.keyframe_insert(data_path='location')
             fakebone.keyframe_insert(data_path='rotation_euler')
             i += 1
-            
+
     scene.frame_set(scene.frame_start)
 
 
@@ -891,26 +906,26 @@ def fix_write_xml(self, writer, indent='', addindent='', newl=''):
     # indent = current indentation
     # addindent = indentation to add to higher levels
     # newl = newline string
-        writer.write(indent + '<' + self.tagName)
-        attrs = self._get_attributes()
-        for a_name in sorted(attrs.keys()):
-            writer.write(' %s=\'' % a_name)
-            xml.dom.minidom._write_data(writer, attrs[a_name].value)
-            writer.write('\'')
-        if self.childNodes:
-            if (len(self.childNodes) == 1
-                and self.childNodes[0].nodeType
-                    == xml.dom.minidom.Node.TEXT_NODE):
-                writer.write('>')
-                self.childNodes[0].writexml(writer, '', '', '')
-                writer.write('</%s>%s' % (self.tagName, newl))
-                return
-            writer.write('>%s' % (newl))
-            for node in self.childNodes:
-                node.writexml(writer, indent + addindent, addindent, newl)
-            writer.write('%s</%s>%s' % (indent, self.tagName, newl))
-        else:
-            writer.write('/>%s' % (newl))
+    writer.write(indent + '<' + self.tagName)
+    attrs = self._get_attributes()
+    for a_name in sorted(attrs.keys()):
+        writer.write(' %s=\'' % a_name)
+        xml.dom.minidom._write_data(writer, attrs[a_name].value)
+        writer.write('\'')
+    if self.childNodes:
+        if (len(self.childNodes) == 1
+            and self.childNodes[0].nodeType
+                == xml.dom.minidom.Node.TEXT_NODE):
+            writer.write('>')
+            self.childNodes[0].writexml(writer, '', '', '')
+            writer.write('</%s>%s' % (self.tagName, newl))
+            return
+        writer.write('>%s' % (newl))
+        for node in self.childNodes:
+            node.writexml(writer, indent + addindent, addindent, newl)
+        writer.write('%s</%s>%s' % (indent, self.tagName, newl))
+    else:
+        writer.write('/>%s' % (newl))
 
 
 # this is needed if you want to access more than the first def
