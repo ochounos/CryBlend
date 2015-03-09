@@ -886,16 +886,16 @@ def write_source(id_, type_, array, params):
 def write_input(name, offset, type_, semantic):
     doc = Document()
     id_ = '{!s}-{!s}'.format(name, type_)
-    input = doc.createElement('input')
+    input_ = doc.createElement('input')
 
     if offset is not None:
-        input.setAttribute('offset', str(offset))
-    input.setAttribute('semantic', semantic)
+        input_.setAttribute('offset', str(offset))
+    input_.setAttribute('semantic', semantic)
     if semantic == 'TEXCOORD':
-        input.setAttribute('set', '0')
-    input.setAttribute('source', '#{!s}'.format(id_))
+        input_.setAttribute('set', '0')
+    input_.setAttribute('source', '#{!s}'.format(id_))
 
-    return input
+    return input_
 
 
 # The following function is from:

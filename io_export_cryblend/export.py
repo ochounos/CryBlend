@@ -116,8 +116,8 @@ class CrytekDaeExporter:
             material_counter[group.name] = 0
 
         for group in utils.get_export_nodes():
-            for object in group.objects:
-                for slot in object.material_slots:
+            for object_ in group.objects:
+                for slot in object_.material_slots:
                     if slot.material is None:
                         continue
 
@@ -405,9 +405,8 @@ class CrytekDaeExporter:
 
     def __export_library_materials(self, parent_element):
         library_materials = self.__doc.createElement('library_materials')
-        materials = utils.get_type('materials')
 
-        for materialname, material in self.__materials.items():
+        for materialname in self.__materials.keys():
             material_element = self.__doc.createElement('material')
             material_element.setAttribute('id', '%s' % materialname)
             instance_effect = self.__doc.createElement('instance_effect')
@@ -555,14 +554,14 @@ class CrytekDaeExporter:
     def __write_vertices(self, object_, mesh, root):
         vertices = self.__doc.createElement('vertices')
         vertices.setAttribute('id', '%s-vertices' % (object_.name))
-        input = utils.write_input(object_.name, None, 'positions', 'POSITION')
-        vertices.appendChild(input)
+        input_ = utils.write_input(object_.name, None, 'positions', 'POSITION')
+        vertices.appendChild(input_)
         root.appendChild(vertices)
 
     def __write_polylist(self, object_, mesh, root):
         matindex = 0
-        for materialname, material in self.__get_materials_for_object(
-                object_).items():
+        for materialname in self.__get_materials_for_object(
+                object_).keys():
             vert_data = ''
             verts_per_poly = ''
             poly_count = normal = texcoord = 0
@@ -625,8 +624,8 @@ class CrytekDaeExporter:
                         'colors',
                         'COLOR'))
 
-            for input in inputs:
-                polylist.appendChild(input)
+            for input_ in inputs:
+                polylist.appendChild(input_)
 
             vcount = self.__doc.createElement('vcount')
             vcount_text = self.__doc.createTextNode(verts_per_poly)
@@ -687,10 +686,10 @@ class CrytekDaeExporter:
         self.__process_bone_weights(object_, armature, skin_node)
 
         joints = self.__doc.createElement('joints')
-        input = utils.write_input(id_, None, 'joints', 'JOINT')
-        joints.appendChild(input)
-        input = utils.write_input(id_, None, 'matrices', 'INV_BIND_MATRIX')
-        joints.appendChild(input)
+        input_ = utils.write_input(id_, None, 'joints', 'JOINT')
+        joints.appendChild(input_)
+        input_ = utils.write_input(id_, None, 'matrices', 'INV_BIND_MATRIX')
+        joints.appendChild(input_)
         skin_node.appendChild(joints)
 
     def __process_bone_joints(self, object_, armature, skin_node):
@@ -952,9 +951,9 @@ class CrytekDaeExporter:
         sampler = self.__doc.createElement('sampler')
         sampler.setAttribute('id', '{!s}-sampler'.format(id_prefix))
 
-        input = self.__doc.createElement('input')
-        input.setAttribute('semantic', 'INPUT')
-        input.setAttribute('source', '{!s}-input'.format(source_prefix))
+        input_ = self.__doc.createElement('input')
+        input_.setAttribute('semantic', 'INPUT')
+        input_.setAttribute('source', '{!s}-input'.format(source_prefix))
         output = self.__doc.createElement('input')
         output.setAttribute('semantic', 'OUTPUT')
         output.setAttribute('source', '{!s}-output'.format(source_prefix))
@@ -974,7 +973,7 @@ class CrytekDaeExporter:
             'source',
             '{!s}-outangent'.format(source_prefix))
 
-        sampler.appendChild(input)
+        sampler.appendChild(input_)
         sampler.appendChild(output)
         sampler.appendChild(interpolation)
         sampler.appendChild(intangent)
@@ -1153,8 +1152,8 @@ class CrytekDaeExporter:
         bind_material = self.__doc.createElement('bind_material')
         technique_common = self.__doc.createElement('technique_common')
 
-        for materialname, material in self.__get_materials_for_object(
-                object_).items():
+        for materialname in self.__get_materials_for_object(
+                object_).keys():
             instance_material = self.__doc.createElement(
                 'instance_material')
             instance_material.setAttribute('symbol', materialname)

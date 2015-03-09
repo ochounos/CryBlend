@@ -215,9 +215,9 @@ class AddCryExportNode(bpy.types.Operator):
             if group is None:
                 bpy.ops.group.create(name=nodename)
             else:
-                for object in bpy.context.selected_objects:
-                    if object.name not in group.objects:
-                        group.objects.link(object)
+                for object_ in bpy.context.selected_objects:
+                    if object_.name not in group.objects:
+                        group.objects.link(object_)
             message = "Adding Export Node"
         else:
             message = "No Objects Selected"
@@ -437,9 +437,9 @@ def get_vertex_data():
 def name_branch(is_new_branch):
     highest_branch_number = 0
     highest_joint_number = 0
-    for object in bpy.context.scene.objects:
-        if ((object.type == 'EMPTY') and ("branch" in object.name)):
-            branch_components = object.name.split("_")
+    for object_ in bpy.context.scene.objects:
+        if ((object_.type == 'EMPTY') and ("branch" in object_.name)):
+            branch_components = object_.name.split("_")
             if(branch_components):
                 branch_name = branch_components[0]
                 branch_number = int(branch_name[6:])
