@@ -244,9 +244,10 @@ class _TIFConverter:
         tiff_name = tiff_path.get_basename()
 
         temp_path = Path(self.__temp_dir, tiff_name, ".tif")
+        dest_path = Path(self.__config.textures_dir, tiff_name, ".tif")
 
         if tiff_path != image_path:
-            self.__temp_images[temp_path] = tiff_path
+            self.__temp_images[temp_path] = dest_path
             self.__save_as_tiff(image, temp_path)
 
         return temp_path
