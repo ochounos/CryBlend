@@ -19,7 +19,6 @@ else:
     import bpy
     from io_export_cryblend import exceptions
 
-
 from io_export_cryblend.outPipe import cbPrint
 from mathutils import Matrix, Vector
 from xml.dom.minidom import Document, parseString
@@ -103,6 +102,76 @@ def negate_z_axis_of_matrix(matrix_local):
 # Path Manipulations:
 #------------------------------------------------------------------------------
 
+class Path(str):
+
+    def __new__(cls, *components):
+        path = cls.__build(*components)
+        path = cls.__normalize(path)
+        return str.__new__(cls, path)
+
+    @classmethod
+    def __build(cls, *components):
+        path = "/".join(components).replace("/.", ".")
+        return path
+
+    @classmethod
+    def __normalize(cls, path):
+        path = path.replace("\\", "/")
+
+        multiple_paths = re.compile("/{2,}")
+        path = multiple_paths.sub("/", path)
+
+        if path[0] == "/":
+            path = path[1:]
+
+        if path[-1] == "/":
+            path = path[:-1]
+
+        return path
+
+    def get_extension(self):
+        return os.path.splitext(self)[1]
+
+    def set_extension(self, extension):
+        return Path("{}.{}".format(os.path.splitext(self)[0], extension))
+
+    def remove_extension(self):
+        return Path(os.path.splitext(self)[0])
+
+    def get_basename(self):
+        components = self.split("/")
+        name = os.path.splitext(components[-1])[0]
+        return name
+
+    def get_relative_to(self, base):
+        components = self.split("/")
+        for index, component in enumerate(components):
+            if component == base:
+                index += 1
+                break
+        components_trimmed = components[index:]
+        return Path(*components_trimmed)
+
+    def generate_file(self, contents, overwrite=True):
+        xml_ext = [".xml", ".dae", ".chrparams", ".cdf"]
+        if self.get_extension() in xml_ext:
+            if isinstance(contents, str):
+                xml = parseString(contents)
+            else:
+                xml = contents
+            contents = xml.toprettyxml(indent='    ')
+
+        if not os.path.exists(self) or overwrite:
+            file = open(self, 'w')
+            file.write(contents)
+            file.close()
+
+    @staticmethod
+    def remove_file(path):
+        if os.path.exists(path):
+            os.remove(path)
+
+
 def get_absolute_path(file_path):
     [is_relative, file_path] = strip_blender_path_prefix(file_path)
 
@@ -168,61 +237,6 @@ def make_relative_path(filepath, start):
 
     except ValueError:
         raise exceptions.TextureAndBlendDiskMismatchException(start, filepath)
-
-
-def get_path_with_new_extension(path, extension):
-    return '%s.%s' % (os.path.splitext(path)[0], extension)
-
-
-def strip_extension_from_path(path):
-    return os.path.splitext(path)[0]
-
-
-def get_extension_from_path(path):
-    return os.path.splitext(path)[1]
-
-
-def normalize_path(path):
-    path = path.replace("\\", "/")
-
-    multiple_paths = re.compile("/{2,}")
-    path = multiple_paths.sub("/", path)
-
-    if path[0] == "/":
-        path = path[1:]
-
-    if path[-1] == "/":
-        path = path[:-1]
-
-    return path
-
-
-def build_path(*components):
-    path = "/".join(components)
-    path = path.replace("/.", ".")  # accounts for extension
-    return normalize_path(path)
-
-
-def get_filename(path):
-    path_normalized = normalize_path(path)
-    components = path_normalized.split("/")
-    name = os.path.splitext(components[-1])[0]
-    return name
-
-
-def trim_path_to(path, trim_to):
-    path_normalized = normalize_path(path)
-    components = path_normalized.split("/")
-    for index, component in enumerate(components):
-        if component == trim_to:
-            cbPrint("FOUND AN INSTANCE")
-            break
-    cbPrint(index)
-    components_trimmed = components[index:]
-    cbPrint(components_trimmed)
-    path_trimmed = build_path(*components_trimmed)
-    cbPrint(path_trimmed)
-    return path_trimmed
 
 
 #------------------------------------------------------------------------------
@@ -428,7 +442,11 @@ def __get_textures():
     items = []
     texture_slots = get_type('texture_slots')
     for texture_slot in texture_slots:
-        items.append(texture_slot.texture)
+        try:
+            if is_valid_image(texture_slot.texture.image):
+                items.append(texture_slot.texture)
+        except AttributeError:
+            pass
 
     return items
 
@@ -525,7 +543,7 @@ def get_material_props(materialname):
     if has_material_physics(materialname):
         groups = re.findall('(.*)__(phys[A-Za-z0-9]+)', materialname)
         return replace_invalid_rc_characters(groups[0][0]), groups[0][1]
-    return replace_invalid_rc_characters(materialname), "physDefault"
+    return replace_invalid_rc_characters(materialname), "physNone"
 
 
 def has_material_physics(materialname):

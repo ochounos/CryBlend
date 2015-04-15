@@ -20,6 +20,7 @@ else:
     from io_export_cryblend import utils
 
 from io_export_cryblend.outPipe import cbPrint
+from io_export_cryblend.utils import Path
 from xml.dom.minidom import Document, parseString
 import fnmatch
 import os
@@ -55,18 +56,16 @@ class _DAEConverter:
         self.__doc = source
 
     def __call__(self):
-        filepath = bpy.path.ensure_ext(self.__config.filepath, '.dae')
-        xml_string = self.__doc.toprettyxml(indent="    ")
-        utils.generate_file(filepath, xml_string, overwrite=True)
+        dae_path = Path(self.__config.filepath)
+        dae_path.generate_file(self.__doc)
 
-        dae_path = utils.get_absolute_path_for_rc(filepath)
+        dae_path = utils.get_absolute_path_for_rc(dae_path)
 
         if not self.__config.disable_rc:
             rc_params = [
                 '/verbose',
                 '/threads=processors',
-                '/refresh',
-                '/logfiles=1']
+                '/refresh']
             if self.__config.do_materials:
                 rc_params.append('/createmtl=1')
 
@@ -204,40 +203,53 @@ class _TIFConverter:
     def __init__(self, config, source):
         self.__config = config
         self.__images = source
-        self.__tiffs = []
+        self.__temp_images = {}
+        self.__temp_dir = tempfile.mkdtemp("CryBlend")
 
     def __call__(self):
-        texture_dir = self.__config.texture_dir
-        if self.__images:
-            if not os.path.exists(texture_dir):
-                os.makedirs(texture_dir)
-
+        cbPrint(len(self.__images))
         for image in self.__images:
-            tiff_name = utils.get_filename(image.filepath)
-            tiff_path = utils.build_path(texture_dir, tiff_name, ".tif")
-            if tiff_path != image.filepath:
-                self.__tiffs.append(tiff_path)
-            self.__save_as_tiff(image, tiff_path)
+            tiff_path = self.__get_temp_tiff_image_path(image)
 
             rc_process = run_rc(self.__config.texture_rc_path,
                                 tiff_path,
                                 self.__get_rc_params())
             rc_process.wait()
 
-        if not self.__config.save_tiffs:
-            self.__remove_tiffs()
+        if self.__config.save_tiffs:
+            self.__save_tiffs()
+
+        self.__remove_temp_files()
 
     def __get_rc_params(self):
         params = [
             '/verbose',
             '/threads=cores',
-            '/userdialog=1',
             '/refresh',
-            '/quiet']
+            '/targetroot={}'.format(self.__config.textures_dir)]
         if (self.__config.suppress_printouts):
             params.append('/quiet')
- 
+        if (self.__config.show_texture_dialog):
+            params.append('/userdialog=1')
+
         return params
+
+    def __get_temp_tiff_image_path(self, image):
+        image_path = Path(image.filepath)
+
+        if image_path.get_extension() == ".tif":
+            return image_path
+
+        tiff_path = image_path.set_extension("tif")
+        tiff_name = tiff_path.get_basename()
+
+        temp_path = Path(self.__temp_dir, tiff_name, ".tif")
+
+        if tiff_path != image_path:
+            self.__temp_images[temp_path] = tiff_path
+            self.__save_as_tiff(image, temp_path)
+
+        return temp_path
 
     def __save_as_tiff(self, image, tiff_path):
         original_path = image.filepath
@@ -250,12 +262,22 @@ class _TIFConverter:
         finally:
             image.filepath = original_path
 
-    def __remove_tiffs(self):
-        for tiff in self.__tiffs:
+    def __save_tiffs(self):
+        for temp_image, dest_image in self.__temp_images.items():
+            cbPrint("Moving tmp image: {!r} to {!r}".format(temp_image,
+                                                            dest_image),
+                    'debug')
+            shutil.move(temp_image, dest_image)
+
+    def __remove_temp_files(self):
+        for temp_image in self.__temp_images:
             try:
-                os.remove(tiff)
+                os.remove(temp_image)
             except FileNotFoundError:
                 pass
+
+        os.removedirs(self.__temp_dir)
+        self.__temp_images.clear()
 
 
 def run_rc(rc_path, files_to_process, params=None):
@@ -267,6 +289,7 @@ def run_rc(rc_path, files_to_process, params=None):
     else:
         process_params.append(files_to_process)
 
+    process_params.extend(params)
     cbPrint(params)
     cbPrint(files_to_process)
 

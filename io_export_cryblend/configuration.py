@@ -12,8 +12,9 @@
 # <pep8-80 compliant>
 
 
-import bpy
 from io_export_cryblend.outPipe import cbPrint
+from io_export_cryblend.utils import Path
+import bpy
 import os
 import pickle
 
@@ -25,7 +26,8 @@ class __Configuration:
     __CONFIG_FILENAME = 'cryblend.cfg'
     __CONFIG_FILEPATH = os.path.join(__CONFIG_PATH, __CONFIG_FILENAME)
     __DEFAULT_CONFIGURATION = {'RC_PATH': r'',
-                               'TEXTURE_RC_PATH': r''}
+                               'TEXTURE_RC_PATH': r'',
+                               'TEXTURES_DIR': r''}
 
     def __init__(self):
         self.__CONFIG = self.__load({})
@@ -48,6 +50,44 @@ class __Configuration:
     @texture_rc_path.setter
     def texture_rc_path(self, value):
         self.__CONFIG['TEXTURE_RC_PATH'] = value
+
+    @property
+    def textures_dir(self):
+        return self.__CONFIG['TEXTURES_DIR']
+
+    @textures_dir.setter
+    def textures_dir(self, value):
+        self.__CONFIG['TEXTURES_DIR'] = value
+
+    def configured(self):
+        if (self.rc_configured() and
+                self.texture_rc_configured() and
+                self.textures_dir_configured()):
+            return True
+
+        return False
+
+    def rc_configured(self):
+        path = Path(self.__CONFIG['RC_PATH'])
+        cbPrint(path.get_extension())
+        if len(path) > 0 and path.get_basename() == "rc":
+            return True
+
+        return False
+
+    def texture_rc_configured(self):
+        path = Path(self.__CONFIG['TEXTURE_RC_PATH'])
+        if len(path) > 0 and path.get_basename() == "rc":
+            return True
+
+        return False
+
+    def textures_dir_configured(self):
+        path = Path(self.__CONFIG['TEXTURES_DIR'])
+        if len(path) > 0:
+            return True
+
+        return False
 
     def save(self):
         cbPrint('Saving configuration file.', 'debug')

@@ -64,6 +64,7 @@ from bpy.types import Menu, Panel
 from bpy_extras.io_utils import ExportHelper
 from io_export_cryblend.configuration import Configuration
 from io_export_cryblend.outPipe import cbPrint
+from io_export_cryblend.utils import Path
 from xml.dom.minidom import Document, Element, parse, parseString
 import bmesh
 import bpy.ops
@@ -72,6 +73,7 @@ import configparser
 import os
 import os.path
 import pickle
+import threading
 import webbrowser
 import subprocess
 
@@ -104,7 +106,7 @@ class FindRC(bpy.types.Operator, PathSelectTemplate):
     filename_ext = ".exe"
 
     def process(self, filepath):
-        Configuration.rc_path = "%s" % filepath
+        Configuration.rc_path = filepath
         cbPrint("Found RC at {!r}.".format(Configuration.rc_path), 'debug')
 
     def invoke(self, context, event):
@@ -125,7 +127,7 @@ to be able to export your textures as dds files.'''
     filename_ext = ".exe"
 
     def process(self, filepath):
-        Configuration.texture_rc_path = "%s" % filepath
+        Configuration.texture_rc_path = filepath
         cbPrint("Found RC at {!r}.".format(
             Configuration.texture_rc_path),
             'debug')
@@ -147,13 +149,13 @@ for textures in .mtl file.'''
     filename_ext = ""
 
     def process(self, filepath):
-        Configuration.texture_directory = "%s" % os.path.dirname(filepath)
+        Configuration.textures_dir = os.path.dirname(filepath)
         cbPrint("Textures directory: {!r}.".format(
-            Configuration.texture_directory),
+            Configuration.textures_dir),
             'debug')
 
     def invoke(self, context, event):
-        self.filepath = Configuration.texture_directory
+        self.filepath = Configuration.textures_dir
 
         return ExportHelper.invoke(self, context, event)
 
@@ -847,11 +849,11 @@ class AddBoneGeometry(bpy.types.Operator):
 
                 for bone in obj.data.bones:
                     if ((not "%s_boneGeometry" % bone.name in nameList
-                         and not "%s_Phys" % obj.name in nameList)
-                            or ("%s_Phys" % obj.name in nameList
-                                and "%s_Phys" % bone.name in physBonesList
-                                and not "%s_boneGeometry" % bone.name in nameList)
-                        ):
+                             and not "%s_Phys" % obj.name in nameList)
+                                or ("%s_Phys" % obj.name in nameList
+                                    and "%s_Phys" % bone.name in physBonesList
+                                    and not "%s_boneGeometry" % bone.name in nameList)
+                            ):
                         mesh = bpy.data.meshes.new(
                             "%s_boneGeometry" % bone.name
                         )
@@ -1027,6 +1029,11 @@ class Export(bpy.types.Operator, ExportHelper):
         description="Converts source textures to DDS while exporting materials.",
         default=False,
     )
+    show_texture_dialog = BoolProperty(
+        name="Show Texture Dialog",
+        description="Show texture dialog when converting textures.",
+        default=False,
+    )
     make_chrparams = BoolProperty(
         name="Make CHRPARAMS File",
         description="Create a base CHRPARAMS file for character animations.",
@@ -1088,6 +1095,7 @@ class Export(bpy.types.Operator, ExportHelper):
                 'suppress_printouts',
                 'do_materials',
                 'do_textures',
+                'show_texture_dialog',
                 'make_chrparams',
                 'make_cdf',
                 'include_ik',
@@ -1106,20 +1114,7 @@ class Export(bpy.types.Operator, ExportHelper):
             setattr(self, 'cryblend_version', VERSION)
             setattr(self, 'rc_path', Configuration.rc_path)
             setattr(self, 'texture_rc_path', Configuration.texture_rc_path)
-            setattr(
-                self,
-                'texture_dir',
-                utils.build_path(
-                    os.path.dirname(
-                        self.filepath),
-                    "textures"))
-            setattr(
-                self,
-                'texture_dir',
-                utils.build_path(
-                    os.path.dirname(
-                        self.filepath),
-                    "textures"))
+            setattr(self, 'textures_dir', Configuration.textures_dir)
 
     def execute(self, context):
         cbPrint(Configuration.rc_path, 'debug')
@@ -1156,6 +1151,7 @@ class Export(bpy.types.Operator, ExportHelper):
         box.label("Image and Material", icon="TEXTURE")
         box.prop(self, "do_materials")
         box.prop(self, "do_textures")
+        box.prop(self, "show_texture_dialog")
 
         box = col.box()
         box.label("Character", icon="ARMATURE_DATA")
@@ -1365,6 +1361,10 @@ class CryBlendMainMenu(bpy.types.Menu):
         layout = self.layout
 
         layout.label(text='v%s' % VERSION)
+        if not Configuration.configured():
+            layout.label(text="Not Configured", icon='ERROR')
+        layout.separator()
+
         # layout.operator("open_donate.wp", icon='FORCE_DRAG')
         layout.operator(
             "object.add_cry_export_node",
@@ -1705,16 +1705,35 @@ class ConfigurationsMenu(bpy.types.Menu):
         layout = self.layout
 
         layout.label("Configure")
-        layout.operator("file.find_rc", text="Find RC", icon="SPACE2")
-        layout.operator(
-            "file.find_texture_rc",
-            text="Find Texture RC",
-            icon="SPACE2")
+        if Configuration.rc_configured():
+            layout.operator("file.find_rc",
+                            text="Find RC",
+                            icon="FILE_TICK")
+        else:
+            layout.operator("file.find_rc",
+                            text="Find RC",
+                            icon="ERROR")
+        if Configuration.texture_rc_configured():
+            layout.operator(
+                "file.find_texture_rc",
+                text="Find Texture RC",
+                icon="FILE_TICK")
+        else:
+            layout.operator(
+                "file.find_texture_rc",
+                text="Find Texture RC",
+                icon="ERROR")
         layout.separator()
-        layout.operator(
-            "file.select_texture_directory",
-            text="Select Textures Folder",
-            icon="FILE_FOLDER")
+        if Configuration.textures_dir_configured():
+            layout.operator(
+                "file.select_texture_directory",
+                text="Select Textures Folder",
+                icon="FILE_TICK")
+        else:
+            layout.operator(
+                "file.select_texture_directory",
+                text="Select Textures Folder",
+                icon="ERROR")
 
 
 class AddMaterialPhysicsMenu(bpy.types.Menu):

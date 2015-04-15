@@ -39,8 +39,7 @@ else:
 
 from io_export_cryblend.rc import RCInstance
 from io_export_cryblend.outPipe import cbPrint
-from io_export_cryblend.utils import join
-
+from io_export_cryblend.utils import join, Path
 from bpy_extras.io_utils import ExportHelper
 from collections import OrderedDict
 from datetime import datetime
@@ -87,9 +86,8 @@ class CrytekDaeExporter:
         self.__create_file_header(root_element)
 
         # Just here for future use:
-        self.__export_library_cameras(root_element)
-        self.__export_library_lights(root_element)
-        ###
+        # self.__export_library_cameras(root_element)
+        # self.__export_library_lights(root_element)
 
         self.__export_library_images(root_element)
         self.__export_library_effects(root_element)
@@ -130,7 +128,7 @@ class CrytekDaeExporter:
                         slot.material.name)
 
                     already_exists = False
-                    for materialname, material in materials.items():
+                    for materialname in materials.keys():
                         pattern = '{}__[0-9]+__{}__phys[A-Za-z0-9]+'.format(
                             nodename,
                             name)
@@ -219,12 +217,13 @@ class CrytekDaeExporter:
             self.__convert_images_to_dds(images)
 
     def __export_library_image(self, image):
-        image_name = utils.get_filename(image.filepath)
-        dds_path = utils.build_path(
-            self.__config.texture_dir,
+        image_path = Path(image.filepath)
+        image_name = image_path.get_basename()
+        dds_path = Path(
+            self.__config.textures_dir,
             image_name,
             ".dds")
-        image_path = utils.trim_path_to(dds_path, "Objects")
+        image_path = dds_path.get_relative_to("GameSDK")
 
         image_element = self.__doc.createElement('image')
         image_element.setAttribute('id', '%s' % image.name)
@@ -237,17 +236,8 @@ class CrytekDaeExporter:
         return image_element
 
     def __get_image_textures_in_export_nodes(self):
-        images = []
         textures = utils.get_type('textures')
-
-        for texture in textures:
-            try:
-                if utils.is_valid_image(texture.image):
-                    images.append(texture.image)
-
-            except AttributeError:
-                # don't care about non-image textures
-                pass
+        images = [texture.image for texture in textures]
 
         # return only unique images
         return list(set(images))
