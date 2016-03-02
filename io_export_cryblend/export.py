@@ -52,6 +52,7 @@ class CrytekDaeExporter:
     def __init__(self, config):
         self.__config = config
         self.__doc = Document()
+        self.__selected_objects = self.__get_selected_objects()
         self.__materials = self.__get_materials()
 
     def export(self):
@@ -91,6 +92,13 @@ class CrytekDaeExporter:
 
         write_scripts(self.__config)
 
+    def __get_selected_objects(self):
+        selected_objects = []
+        if self.__config.only_selected:
+            for object_ in bpy.context.selected_objects:
+                selected_objects.append(object_)
+        return selected_objects
+          
     def __get_materials(self):
         materials = OrderedDict()
         material_counter = {}
@@ -98,26 +106,33 @@ class CrytekDaeExporter:
         for group in utils.get_export_nodes():
             material_counter[group.name] = 50
             for object in group.objects:
-                for slot in object.material_slots:
-                    if slot.material is None:
-                        continue
 
-                    if slot.material not in materials:
+                # process material of selected object
+                if (not self.__config.only_selected) or \
+                    (self.__config.only_selected and \
+                         object in self.__selected_objects):
 
-                        # backwards compatibility
-                        nodename = utils.get_node_name(
-                            group.name.replace("CryExportNode_", ""))
+                    for slot in object.material_slots:
 
-                        node, index, name, physics = utils.get_material_parts(
-                            nodename, slot.material.name)
+                        if slot.material is None:
+                            continue
 
-                        # check if material has no position defined
-                        if index == 0:
-                            material_counter[group.name] += 1
-                            index = material_counter[group.name]
+                        if slot.material not in materials:
 
-                        materials[slot.material] = "{}__{:03d}__{}__{}".format(
-                            node, index, name, physics)
+                            # backwards compatibility
+                            nodename = utils.get_node_name(
+                                group.name.replace("CryExportNode_", ""))
+
+                            node, index, name, physics = utils.get_material_parts(
+                                nodename, slot.material.name)
+
+                            # check if material has no position defined
+                            if index == 0:
+                                material_counter[group.name] += 1
+                                index = material_counter[group.name]
+
+                            materials[slot.material] = "{}__{:03d}__{}__{}".format(
+                                node, index, name, physics)
 
         return materials
 
@@ -1041,7 +1056,7 @@ class CrytekDaeExporter:
             node = self.__doc.createElement("node")
             node.setAttribute("id", nodename)
             node.setAttribute("LumberyardExportNode", "1")
-            node.setIdAttribute("id")
+            node.setIdAttribute("id")            
 
         bpy.ops.mesh.primitive_cube_add(location=(0, 0, 0))
         self.__write_transforms(bpy.context.active_object, node)
@@ -1050,7 +1065,9 @@ class CrytekDaeExporter:
         root_objects = []
         for object_ in group.objects:
             if (object_.parent is None or object_.type == 'MESH') and \
-                    not object_.name.endswith("_boneGeometry"):
+                    not object_.name.endswith("_boneGeometry") and \
+                    (not self.__config.only_selected or
+                     (self.__config.only_selected and object_ in self.__selected_objects)):
                 root_objects.append(object_)
         node = self.__write_visual_scene_node(root_objects, node, node)
 
