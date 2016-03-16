@@ -2153,7 +2153,7 @@ class CryBlendMainMenu(bpy.types.Menu):
         layout = self.layout
 
         # version number
-        layout.label(text='v{}'.format(VERSION))
+        layout.label(text='v{}-ochounos'.format(VERSION))
         if not Configuration.configured():
             layout.label(text="No RC found.", icon='ERROR')
         layout.separator()
