@@ -745,7 +745,6 @@ class CrytekDaeExporter:
         vw = ""
         vertex_groups_lengths = ""
         vertex_count = 0
-        vertex_group_count = 0
         bone_list = {}
 
         for bone_id, bone in enumerate(bones):
